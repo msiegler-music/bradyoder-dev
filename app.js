@@ -353,7 +353,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.26";
+const APP_BUILD_VERSION = "v1.27";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1348,6 +1348,14 @@ function updateTransposeUI() {
     }
 
     if (accidentalBtn) {
+        if (currentTransposeSemitones === 0) {
+            accidentalBtn.style.visibility = "hidden";
+            accidentalBtn.style.pointerEvents = "none";
+        } else {
+            accidentalBtn.style.visibility = "visible";
+            accidentalBtn.style.pointerEvents = "auto";
+        }
+
         if (currentAccidentalMode === 'sharp') {
             accidentalBtn.innerText = "♯";
             accidentalBtn.title = "Spelling: Sharps (click for Flats ♭)";
