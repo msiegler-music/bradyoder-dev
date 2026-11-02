@@ -167,6 +167,17 @@ function setupSettingsPopover() {
             }
         };
     });
+
+    const reloadBtn = document.getElementById("force-reload-btn");
+    if (reloadBtn) {
+        reloadBtn.onclick = (e) => {
+            e.stopPropagation();
+            // Force cache-busting reload by appending a fresh timestamp query
+            const url = new URL(window.location.href);
+            url.searchParams.set("_reload", Date.now());
+            window.location.replace(url.toString());
+        };
+    }
 }
 
 // Helper to extract clean slug from a song URL or identifier
@@ -342,7 +353,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.22";
+const APP_BUILD_VERSION = "v1.23";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
