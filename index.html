@@ -425,64 +425,103 @@
         #transpose-controls {
             display: inline-flex;
             align-items: center;
-            gap: 4px;
+            gap: 2px;
             background: #ffffff;
             border: 1px solid #d4d4d8;
             border-radius: 6px;
-            padding: 2px 4px;
-            margin-right: 8px;
-        }
-        .transpose-btn {
-            background: transparent;
-            border: 1px solid transparent;
-            border-radius: 4px;
-            padding: 2px 8px;
-            font-size: 0.8rem;
-            font-weight: 600;
-            color: #3f3f46;
-            cursor: pointer;
-            transition: all 0.15s ease;
-        }
-        .transpose-btn:hover {
-            background: #f4f4f5;
-            border-color: #d4d4d8;
-            color: #0f172a;
+            padding: 2px;
+            margin-right: 6px;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
         #transpose-semitones {
-            font-size: 0.78rem;
+            font-size: 0.76rem;
             font-weight: 700;
             color: #0284c7;
-            min-width: 48px;
+            min-width: 36px;
             text-align: center;
             cursor: pointer;
-            padding: 2px 4px;
+            padding: 4px 6px;
             border-radius: 4px;
             user-select: none;
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            transition: all 0.15s ease;
         }
         #transpose-semitones:hover {
             background: #f0f9ff;
+            border-color: #bae6fd;
         }
         #transpose-semitones.active {
             color: #0d9488;
             background: #f0fdfa;
+            border-color: #99f6e4;
+        }
+        .transpose-pitch-stepper {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 1px;
+            margin: 0 1px;
+        }
+        .transpose-step-btn {
+            background: #f4f4f5;
+            border: 1px solid #e4e4e7;
+            border-radius: 3px;
+            padding: 0 5px;
+            height: 14px;
+            line-height: 12px;
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: #3f3f46;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.1s ease;
+        }
+        .transpose-step-btn:hover {
+            background: #e4e4e7;
+            color: #0f172a;
+            border-color: #d4d4d8;
         }
         .transpose-accidental-toggle {
             font-size: 0.75rem;
             font-weight: 700;
             color: #71717a;
-            border-left: 1px solid #e4e4e7;
-            padding-left: 6px;
-            margin-left: 2px;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 3px 6px;
+            margin: 0 2px;
             cursor: pointer;
-            background: transparent;
-            border-top: none;
-            border-bottom: none;
-            border-right: none;
-            border-radius: 0;
+            background: #f8fafc;
             transition: all 0.15s ease;
         }
         .transpose-accidental-toggle:hover {
             color: #0284c7;
+            background: #f0f9ff;
+            border-color: #bae6fd;
+        }
+        .transpose-fancy-toggle {
+            font-size: 0.82rem;
+            font-weight: 700;
+            color: #71717a;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            padding: 3px 6px;
+            margin-left: 2px;
+            cursor: pointer;
+            background: #f8fafc;
+            transition: all 0.15s ease;
+            user-select: none;
+        }
+        .transpose-fancy-toggle:hover {
+            color: #0284c7;
+            background: #f0f9ff;
+            border-color: #bae6fd;
+        }
+        .transpose-fancy-toggle.active {
+            color: #0284c7;
+            background: #e0f2fe;
+            border-color: #7dd3fc;
         }
 
         /* Split Panes Container */
@@ -544,6 +583,25 @@
             font-size: 1rem;
             line-height: 1.5;
             color: #27272a;
+        }
+        /* Style/Fancy toggle: when NOT fancy, flatten sup/sub to normal line-height and uniform baseline */
+        .docx-content:not(.docx-fancy-mode) sup,
+        .docx-content:not(.docx-fancy-mode) sub {
+            font-size: 100% !important;
+            vertical-align: baseline !important;
+            position: static !important;
+            line-height: inherit !important;
+        }
+        /* When fancy mode is ON, show refined superscript/subscript typography */
+        .docx-content.docx-fancy-mode sup {
+            font-size: 0.75em !important;
+            vertical-align: super !important;
+            line-height: 0 !important;
+        }
+        .docx-content.docx-fancy-mode sub {
+            font-size: 0.75em !important;
+            vertical-align: sub !important;
+            line-height: 0 !important;
         }
         .docx-chord {
             color: #0284c7;
@@ -906,12 +964,15 @@
                         <span id="chart-tuning-meta" style="font-size: 0.95rem; font-weight: 500; color: #0284c7;"></span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <!-- Transpose Control Bar -->
+                        <!-- Transpose Control Bar: [Orig] [+/-] [#/b] [¶] -->
                         <div id="transpose-controls" style="display: none;" title="Transpose chord chart">
-                            <button type="button" class="transpose-btn" id="transpose-down-btn" title="Transpose down 1 semitone">-1</button>
                             <span id="transpose-semitones" title="Click to reset transposition">Orig</span>
-                            <button type="button" class="transpose-btn" id="transpose-up-btn" title="Transpose up 1 semitone">+1</button>
+                            <div class="transpose-pitch-stepper">
+                                <button type="button" class="transpose-step-btn" id="transpose-up-btn" title="Transpose up 1 semitone (+)">▲</button>
+                                <button type="button" class="transpose-step-btn" id="transpose-down-btn" title="Transpose down 1 semitone (-)">▼</button>
+                            </div>
                             <button type="button" class="transpose-accidental-toggle" id="transpose-accidental-btn" title="Toggle enharmonic spellings (Sharps # / Flats ♭)">♯</button>
+                            <button type="button" class="transpose-fancy-toggle" id="transpose-fancy-btn" title="Toggle fancy formatting (subscript & superscript extensions)">¶</button>
                         </div>
                         <div id="version-selector" style="display: none;">
                             <!-- Dynamically populated alternate version tabs -->
@@ -936,6 +997,6 @@
     </div>
 
     <!-- Application Script -->
-    <script src="app.js?v=1.19"></script>
+    <script src="app.js?v=1.20"></script>
 </body>
 </html>

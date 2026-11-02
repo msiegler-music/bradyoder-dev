@@ -349,11 +349,11 @@ if (window.pdfjsLib) {
 async function initApp() {
     try {
         const [songsRes, albumsRes, chartsRes, lyricsRes, audioRes] = await Promise.all([
-            fetch('songs.csv?v=1.19'),
-            fetch('albums.csv?v=1.19'),
-            fetch('charts.csv?v=1.19').catch(() => null),
-            fetch('lyrics.csv?v=1.19').catch(() => null),
-            fetch('audio.csv?v=1.19').catch(() => null)
+            fetch('songs.csv?v=1.20'),
+            fetch('albums.csv?v=1.20'),
+            fetch('charts.csv?v=1.20').catch(() => null),
+            fetch('lyrics.csv?v=1.20').catch(() => null),
+            fetch('audio.csv?v=1.20').catch(() => null)
         ]);
 
         const songsCsvText = await songsRes.text();
@@ -1142,7 +1142,8 @@ async function fetchChartBuffer(filename) {
 // In MS Word, Brad writes flats as root letter + superscript 'b' (e.g. B<sup>b</sup>),
 // sharps as root + superscript '#' (F<sup>#</sup>), slash chords as <sup>Eb/</sup>Bb or <sup>B</sup><sup>b/</sup>D,
 // and chord qualities/extensions as <sup>9</sup>, <sup>maj7</sup>, <sup>sus</sup>.
-// This function collapses them into cohesive, standard musical tokens before rendering and transposing.
+// This function collapses accidentals onto their roots while preserving typographic sup/sub tags
+// for musical extensions so they can be toggled via Fancy Formatting mode (¶).
 function cleanMammothDocxHtml(html) {
     if (!html) return html;
     
@@ -1163,13 +1164,10 @@ function cleanMammothDocxHtml(html) {
     // 4. Attach standalone superscript slashes: e.g. <sup>/</sup>C -> /C
     h = h.replace(/<sup>\s*\/\s*<\/sup>\s*([A-Ga-g][#b]?)/g, '/$1');
     
-    // 5. Unwrap remaining superscript/subscript tags in chord lines so extensions like dm<sup>9</sup>, F<sup>maj7</sup>, C<sup>sus</sup> are clean
-    h = h.replace(/<\/?(?:sup|sub)[^>]*>/gi, '');
-    
-    // 6. Normalize accidental spaces inside chords: e.g. "B  b" -> "Bb", "F  #" -> "F#"
+    // 5. Normalize accidental spaces inside chords: e.g. "B  b" -> "Bb", "F  #" -> "F#"
     h = h.replace(/\b([A-Ga-g])\s+([b#])\b/g, '$1$2');
     
-    // 7. Smush unsmushed chord extensions separated by spaces:
+    // 6. Smush unsmushed chord extensions separated by spaces:
     // e.g. "C maj7" -> "Cmaj7", "Bb add9maj7" -> "Bbadd9maj7", "F add9" -> "Fadd9", "E add9" -> "Eadd9", "D sus" -> "Dsus"
     const smushPattern = /\b([A-Ga-g][#b]?)\s+((?:maj|min|dim|aug|sus|add|m7|m9|m11)[a-zA-Z0-9#b+-]*)/g;
     let prev = null;
@@ -1183,6 +1181,7 @@ function cleanMammothDocxHtml(html) {
 let currentTransposeSemitones = 0;
 let rawCurrentDocxHtml = null;
 let currentAccidentalMode = 'auto'; // 'auto', 'sharp', 'flat'
+let isFancyFormattingMode = true; // Toggle for superscript/subscript visual styling (¶)
 
 // Pitch transposition data structures
 const PITCH_SEMITONE_MAP = {
@@ -1219,8 +1218,9 @@ function transposePitchString(pitch, semitones, preferFlat = false) {
 }
 
 // Regex matching individual chords and slash bass tokens across all Brad Yoder charts
-// Handles: G, f#m, f#msus, F#7/A#, bm, /C#, /A, B579, Gadd9, C/E, Db, Eb, dm11, Em9-5, Gmaj7+11, Am#6, Dsus79, Emb5, G/Bo, Bbadd9maj7, etc.
-const CHORD_TOKEN_REGEX = /(?<![A-Za-z0-9_#*])(?:(\/[A-Ga-g][#b]?)|([A-Ga-g][#b]?)((?:maj|min|dim|aug|sus|add|m|[0-9#b+-])*)(?:\/([A-Ga-g][#b]?)([0-9a-z#b+-]*)?)?)(?![A-Za-z0-9_#])/g;
+// Handles: G, f#m, f#msus, F#7/A#, bm, /C#, /A, B579, Gadd9, C/E, Db, Eb, dm11, Em9-5, Gmaj7+11, Am#6, Dsus79, Emb5, G/Bo, Bbadd9maj7,
+// and supports inner HTML tags like dm<sup>9</sup> or F<sup>maj7</sup> in fancy mode.
+const CHORD_TOKEN_REGEX = /(?<![A-Za-z0-9_#*])(?:(\/[A-Ga-g][#b]?)|([A-Ga-g][#b]?)((?:<[^>]+>|maj|min|dim|aug|sus|add|m|[0-9#b+-])*)(?:\/([A-Ga-g][#b]?)([0-9a-z#b+-]*)?)?)(?![A-Za-z0-9_#])/g;
 
 function transposeChordString(text, semitones, preferFlat = false) {
     if (semitones === 0) return text;
@@ -1282,6 +1282,7 @@ function updateTransposeUI() {
     const controls = document.getElementById("transpose-controls");
     const label = document.getElementById("transpose-semitones");
     const accidentalBtn = document.getElementById("transpose-accidental-btn");
+    const fancyBtn = document.getElementById("transpose-fancy-btn");
     if (!controls || !label) return;
 
     if (!rawCurrentDocxHtml) {
@@ -1316,6 +1317,32 @@ function updateTransposeUI() {
             accidentalBtn.style.color = "#71717a";
         }
     }
+
+    if (fancyBtn) {
+        if (isFancyFormattingMode) {
+            fancyBtn.classList.add("active");
+            fancyBtn.title = "Fancy formatting: ON (superscripts/subscripts active). Click to flatten.";
+        } else {
+            fancyBtn.classList.remove("active");
+            fancyBtn.title = "Fancy formatting: OFF (flattened baseline). Click for fancy.";
+        }
+    }
+}
+
+function toggleFancyFormattingMode() {
+    isFancyFormattingMode = !isFancyFormattingMode;
+    const chartContainer = document.getElementById("chart-container");
+    if (chartContainer) {
+        const docxDiv = chartContainer.querySelector(".docx-content");
+        if (docxDiv) {
+            if (isFancyFormattingMode) {
+                docxDiv.classList.add("docx-fancy-mode");
+            } else {
+                docxDiv.classList.remove("docx-fancy-mode");
+            }
+        }
+    }
+    updateTransposeUI();
 }
 
 function applyTransposition(delta, absolute = false) {
@@ -1371,6 +1398,7 @@ function setupTransposeControls() {
     const upBtn = document.getElementById("transpose-up-btn");
     const resetBtn = document.getElementById("transpose-semitones");
     const accidentalBtn = document.getElementById("transpose-accidental-btn");
+    const fancyBtn = document.getElementById("transpose-fancy-btn");
 
     if (downBtn) {
         downBtn.onclick = (e) => {
@@ -1395,6 +1423,12 @@ function setupTransposeControls() {
         accidentalBtn.onclick = (e) => {
             e.stopPropagation();
             toggleAccidentalMode();
+        };
+    }
+    if (fancyBtn) {
+        fancyBtn.onclick = (e) => {
+            e.stopPropagation();
+            toggleFancyFormattingMode();
         };
     }
 }
@@ -1444,7 +1478,8 @@ async function loadChartFile(filename) {
             } else {
                 rawCurrentDocxHtml = null; // Do not enable transposition controls for numbers charts
             }
-            container.innerHTML = `<div class="docx-content">${docxHtml}</div>`;
+            const fancyClass = isFancyFormattingMode ? "docx-fancy-mode" : "";
+            container.innerHTML = `<div class="docx-content ${fancyClass}">${docxHtml}</div>`;
             updateTransposeUI();
         } else if (ext === 'pdf') {
             // PDF.js renders PDF pages client-side onto HTML5 Canvas elements
