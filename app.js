@@ -341,6 +341,9 @@ window.addEventListener("popstate", () => {
 });
 
 // Configure PDF.js worker
+// Application build version constant for cache busting & runtime display
+const APP_BUILD_VERSION = "v1.22";
+
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
 }
@@ -349,11 +352,11 @@ if (window.pdfjsLib) {
 async function initApp() {
     try {
         const [songsRes, albumsRes, chartsRes, lyricsRes, audioRes] = await Promise.all([
-            fetch('songs.csv?v=1.21'),
-            fetch('albums.csv?v=1.21'),
-            fetch('charts.csv?v=1.21').catch(() => null),
-            fetch('lyrics.csv?v=1.21').catch(() => null),
-            fetch('audio.csv?v=1.21').catch(() => null)
+            fetch(`songs.csv?v=${APP_BUILD_VERSION}`),
+            fetch(`albums.csv?v=${APP_BUILD_VERSION}`),
+            fetch(`charts.csv?v=${APP_BUILD_VERSION}`).catch(() => null),
+            fetch(`lyrics.csv?v=${APP_BUILD_VERSION}`).catch(() => null),
+            fetch(`audio.csv?v=${APP_BUILD_VERSION}`).catch(() => null)
         ]);
 
         const songsCsvText = await songsRes.text();
@@ -441,6 +444,11 @@ async function initApp() {
         setupMobileViewToggle();
         setupTransposeControls();
         
+        const versionBadge = document.getElementById("app-version-badge");
+        if (versionBadge) {
+            versionBadge.innerText = APP_BUILD_VERSION;
+        }
+
         // Environment Badge detection (shows DEV badge only if on dev origin/hostname/path)
         const isDevEnv = window.location.hostname === "localhost" || 
                          window.location.hostname === "127.0.0.1" || 

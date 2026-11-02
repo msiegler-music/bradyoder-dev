@@ -283,6 +283,27 @@
             cursor: pointer;
             accent-color: #0284c7;
         }
+        .settings-divider {
+            height: 1px;
+            background: #e4e4e7;
+            margin: 14px 0 10px 0;
+        }
+        .settings-version-info {
+            font-size: 0.75rem;
+            color: #71717a;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+        .settings-version-tag {
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace;
+            background: #f4f4f5;
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-weight: 600;
+            color: #0284c7;
+            border: 1px solid #e4e4e7;
+        }
         #active-song-title {
             margin: 0;
             font-size: 1.35rem;
@@ -951,6 +972,11 @@
                             <span>Spotify (login for full)</span>
                         </label>
                     </div>
+                    <div class="settings-divider"></div>
+                    <div class="settings-version-info">
+                        <span>App Version:</span>
+                        <span id="app-version-badge" class="settings-version-tag">v1.22</span>
+                    </div>
                 </div>
             </div>
         </div>
@@ -997,6 +1023,6 @@
     </div>
 
     <!-- Application Script -->
-    <script src="app.js?v=1.21"></script>
+    <script src="app.js?v=1.22"></script>
 </body>
 </html>
