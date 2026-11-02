@@ -349,11 +349,11 @@ if (window.pdfjsLib) {
 async function initApp() {
     try {
         const [songsRes, albumsRes, chartsRes, lyricsRes, audioRes] = await Promise.all([
-            fetch('songs.csv?v=1.16'),
-            fetch('albums.csv?v=1.16'),
-            fetch('charts.csv?v=1.16').catch(() => null),
-            fetch('lyrics.csv?v=1.16').catch(() => null),
-            fetch('audio.csv?v=1.16').catch(() => null)
+            fetch('songs.csv?v=1.17'),
+            fetch('albums.csv?v=1.17'),
+            fetch('charts.csv?v=1.17').catch(() => null),
+            fetch('lyrics.csv?v=1.17').catch(() => null),
+            fetch('audio.csv?v=1.17').catch(() => null)
         ]);
 
         const songsCsvText = await songsRes.text();
@@ -1142,25 +1142,24 @@ function transposePitchString(pitch, semitones, preferFlat = false) {
     return isLower ? transposed.toLowerCase() : transposed;
 }
 
-// Regex matching individual chords and slash bass tokens
-// Handles: G, f#m, F#7/A#, bm, /C#, /A, B579, Gadd9, C/E, Db, Eb, etc.
-const CHORD_TOKEN_REGEX = /(?<![A-Za-z0-9_#])(?:(\/[A-Ga-g][#b]?)|([A-Ga-g][#b]?)([mM]aj|[mM]in|dim|aug|sus|add|m)?(\d+)?([#b+-]\d+)?(?:\/([A-Ga-g][#b]?))?)(?![A-Za-z0-9_#])/g;
+// Regex matching individual chords and slash bass tokens across all Brad Yoder charts
+// Handles: G, f#m, F#7/A#, bm, /C#, /A, B579, Gadd9, C/E, Db, Eb, dm11, Em9-5, Gmaj7+11, Am#6, Dsus79, Emb5, G/Bo, etc.
+const CHORD_TOKEN_REGEX = /(?<![A-Za-z0-9_#*])(?:(\/[A-Ga-g][#b]?)|([A-Ga-g][#b]?)([mM]aj|[mM]in|dim|aug|sus|add|m)?([0-9#b+-]+)?(?:\/([A-Ga-g][#b]?)([0-9a-z#b+-]*)?)?)(?![A-Za-z0-9_#])/g;
 
 function transposeChordString(text, semitones, preferFlat = false) {
     if (semitones === 0) return text;
-    return text.replace(CHORD_TOKEN_REGEX, (match, soloSlash, root, quality, ext, mod, bass) => {
+    return text.replace(CHORD_TOKEN_REGEX, (match, soloSlash, root, quality, ext, bass, bassExt) => {
         if (soloSlash) {
             const pitch = soloSlash.slice(1);
             return '<span class="docx-chord-transposed">/' + transposePitchString(pitch, semitones, preferFlat) + '</span>';
         }
         if (!root) return match;
-        // Verify this isn't a false positive English word like "a" or "I" in a lyrics line
         const qualityStr = quality || '';
         const extStr = ext || '';
-        const modStr = mod || '';
         const newRoot = transposePitchString(root, semitones, preferFlat);
-        const newBass = bass ? ('/' + transposePitchString(bass, semitones, preferFlat)) : '';
-        return `<span class="docx-chord-transposed">${newRoot}${qualityStr}${extStr}${modStr}${newBass}</span>`;
+        const bassExtStr = bassExt || '';
+        const newBass = bass ? ('/' + transposePitchString(bass, semitones, preferFlat) + bassExtStr) : '';
+        return `<span class="docx-chord-transposed">${newRoot}${qualityStr}${extStr}${newBass}</span>`;
     });
 }
 
