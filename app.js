@@ -349,11 +349,11 @@ if (window.pdfjsLib) {
 async function initApp() {
     try {
         const [songsRes, albumsRes, chartsRes, lyricsRes, audioRes] = await Promise.all([
-            fetch('songs.csv?v=1.13'),
-            fetch('albums.csv?v=1.13'),
-            fetch('charts.csv?v=1.13').catch(() => null),
-            fetch('lyrics.csv?v=1.13').catch(() => null),
-            fetch('audio.csv?v=1.13').catch(() => null)
+            fetch('songs.csv?v=1.14'),
+            fetch('albums.csv?v=1.14'),
+            fetch('charts.csv?v=1.14').catch(() => null),
+            fetch('lyrics.csv?v=1.14').catch(() => null),
+            fetch('audio.csv?v=1.14').catch(() => null)
         ]);
 
         const songsCsvText = await songsRes.text();
@@ -439,6 +439,7 @@ async function initApp() {
         setupSettingsPopover();
         setupSidebarToggle();
         setupMobileViewToggle();
+        setupTransposeControls();
         
         // Environment Badge detection (shows DEV badge only if on dev origin/hostname/path)
         const isDevEnv = window.location.hostname === "localhost" || 
@@ -1102,11 +1103,181 @@ async function fetchChartBuffer(filename) {
     return { ok: false };
 }
 
+// Global transposition state for chord charts
+let currentTransposeSemitones = 0;
+let rawCurrentDocxHtml = null;
+
+// Pitch transposition data structures
+const PITCH_SEMITONE_MAP = {
+    'C': 0, 'B#': 0,
+    'C#': 1, 'Db': 1,
+    'D': 2,
+    'D#': 3, 'Eb': 3,
+    'E': 4, 'Fb': 4,
+    'F': 5, 'E#': 5,
+    'F#': 6, 'Gb': 6,
+    'G': 7,
+    'G#': 8, 'Ab': 8,
+    'A': 9,
+    'A#': 10, 'Bb': 10,
+    'B': 11, 'Cb': 11
+};
+const SHARP_SCALE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const FLAT_SCALE  = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+
+function transposePitchString(pitch, semitones, preferFlat = false) {
+    if (!pitch) return pitch;
+    const isLower = pitch === pitch.toLowerCase();
+    // Normalize pitch casing e.g. "f#" -> "F#", "eb" -> "Eb", "b" -> "B"
+    let norm = pitch.charAt(0).toUpperCase();
+    if (pitch.length > 1) {
+        norm += pitch.slice(1).toLowerCase();
+    }
+    if (!(norm in PITCH_SEMITONE_MAP)) return pitch;
+    let semitoneVal = (PITCH_SEMITONE_MAP[norm] + semitones) % 12;
+    if (semitoneVal < 0) semitoneVal += 12;
+    const scale = preferFlat ? FLAT_SCALE : SHARP_SCALE;
+    const transposed = scale[semitoneVal];
+    return isLower ? transposed.toLowerCase() : transposed;
+}
+
+// Regex matching individual chords and slash bass tokens
+// Handles: G, f#m, F#7/A#, bm, /C#, /A, B579, Gadd9, C/E, Db, Eb, etc.
+const CHORD_TOKEN_REGEX = /(?<![A-Za-z0-9_#])(?:(\/[A-Ga-g][#b]?)|([A-Ga-g][#b]?)([mM]aj|[mM]in|dim|aug|sus|add|m)?(\d+)?([#b+-]\d+)?(?:\/([A-Ga-g][#b]?))?)(?![A-Za-z0-9_#])/g;
+
+function transposeChordString(text, semitones, preferFlat = false) {
+    if (semitones === 0) return text;
+    return text.replace(CHORD_TOKEN_REGEX, (match, soloSlash, root, quality, ext, mod, bass) => {
+        if (soloSlash) {
+            const pitch = soloSlash.slice(1);
+            return '<span class="docx-chord-transposed">/' + transposePitchString(pitch, semitones, preferFlat) + '</span>';
+        }
+        if (!root) return match;
+        // Verify this isn't a false positive English word like "a" or "I" in a lyrics line
+        const qualityStr = quality || '';
+        const extStr = ext || '';
+        const modStr = mod || '';
+        const newRoot = transposePitchString(root, semitones, preferFlat);
+        const newBass = bass ? ('/' + transposePitchString(bass, semitones, preferFlat)) : '';
+        return `<span class="docx-chord-transposed">${newRoot}${qualityStr}${extStr}${modStr}${newBass}</span>`;
+    });
+}
+
+function transposeChartHtml(html, semitones) {
+    if (!html) return html;
+    if (semitones === 0) return html;
+
+    // Decide flat vs sharp preference based on transposition direction or target
+    const preferFlat = semitones < 0;
+
+    // Use DOMParser to process paragraph by paragraph without corrupting HTML tags
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
+    const container = doc.body.firstElementChild;
+    if (!container) return html;
+
+    const paragraphs = container.querySelectorAll('p, tr');
+    paragraphs.forEach(p => {
+        const text = p.textContent || "";
+        // Transpose if line contains measure bars (|) or chord indicators
+        if (text.includes('|') || text.includes('||:') || text.includes(':||')) {
+            // Chord measure line
+            p.innerHTML = transposeChordString(p.innerHTML, semitones, preferFlat);
+        } else if (text.includes('capo') || text.includes('(') && text.includes(')')) {
+            // Header line with key metadata like "(D, C capo 2)" or "(Eb=C capo3)"
+            p.innerHTML = p.innerHTML.replace(/\(([^)]+)\)/g, (parenMatch, innerContent) => {
+                const transposedInner = transposeChordString(innerContent, semitones, preferFlat);
+                return `(${transposedInner})`;
+            });
+        }
+    });
+
+    return container.innerHTML;
+}
+
+function updateTransposeUI() {
+    const controls = document.getElementById("transpose-controls");
+    const label = document.getElementById("transpose-semitones");
+    if (!controls || !label) return;
+
+    if (!rawCurrentDocxHtml) {
+        controls.style.display = "none";
+        return;
+    }
+
+    controls.style.display = "inline-flex";
+    if (currentTransposeSemitones === 0) {
+        label.innerText = "Orig";
+        label.classList.remove("active");
+        label.title = "Original key (click to reset)";
+    } else {
+        const sign = currentTransposeSemitones > 0 ? `+${currentTransposeSemitones}` : `${currentTransposeSemitones}`;
+        label.innerText = sign;
+        label.classList.add("active");
+        label.title = `Transposed ${sign} semitones (click to reset to original)`;
+    }
+}
+
+function applyTransposition(delta, absolute = false) {
+    if (!rawCurrentDocxHtml) return;
+    if (absolute) {
+        currentTransposeSemitones = delta;
+    } else {
+        currentTransposeSemitones += delta;
+        // Clamp to -11 to +11 semitones
+        if (currentTransposeSemitones > 11) currentTransposeSemitones -= 12;
+        if (currentTransposeSemitones < -11) currentTransposeSemitones += 12;
+    }
+
+    updateTransposeUI();
+
+    const chartContainer = document.getElementById("chart-container");
+    if (!chartContainer) return;
+    const docxDiv = chartContainer.querySelector(".docx-content");
+    if (!docxDiv) return;
+
+    if (currentTransposeSemitones === 0) {
+        docxDiv.innerHTML = rawCurrentDocxHtml;
+    } else {
+        docxDiv.innerHTML = transposeChartHtml(rawCurrentDocxHtml, currentTransposeSemitones);
+    }
+}
+
+function setupTransposeControls() {
+    const downBtn = document.getElementById("transpose-down-btn");
+    const upBtn = document.getElementById("transpose-up-btn");
+    const resetBtn = document.getElementById("transpose-semitones");
+
+    if (downBtn) {
+        downBtn.onclick = (e) => {
+            e.stopPropagation();
+            applyTransposition(-1);
+        };
+    }
+    if (upBtn) {
+        upBtn.onclick = (e) => {
+            e.stopPropagation();
+            applyTransposition(+1);
+        };
+    }
+    if (resetBtn) {
+        resetBtn.onclick = (e) => {
+            e.stopPropagation();
+            applyTransposition(0, true);
+        };
+    }
+}
+
 // 4. Client-side chart rendering (PDF.js Canvas & Mammoth.js DOM injection)
 async function loadChartFile(filename) {
     const ext = filename.split('.').pop().toLowerCase();
     const container = document.getElementById("chart-container");
     container.innerHTML = "<p style='color: #71717a;'>Loading chart...</p>";
+    
+    // Reset transposition state for new chart
+    currentTransposeSemitones = 0;
+    rawCurrentDocxHtml = null;
+    updateTransposeUI();
 
     try {
         const fileResult = await fetchChartBuffer(filename);
@@ -1131,7 +1302,9 @@ async function loadChartFile(filename) {
                 .replace(/[\u{1F869}\u{1F861}\uF0E1🡩]+/gu, '↑')
                 .replace(/[\u{1F86B}\u{1F863}\uF0E2🡫]+/gu, '↓');
                 
+            rawCurrentDocxHtml = docxHtml;
             container.innerHTML = `<div class="docx-content">${docxHtml}</div>`;
+            updateTransposeUI();
         } else if (ext === 'pdf') {
             // PDF.js renders PDF pages client-side onto HTML5 Canvas elements
             container.innerHTML = `<div id="pdf-wrapper" class="pdf-viewer-container"></div>`;

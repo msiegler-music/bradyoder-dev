@@ -409,6 +409,52 @@
             border-color: #0284c7;
         }
 
+        /* Transpose Controls */
+        #transpose-controls {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            background: #ffffff;
+            border: 1px solid #d4d4d8;
+            border-radius: 6px;
+            padding: 2px 4px;
+            margin-right: 8px;
+        }
+        .transpose-btn {
+            background: transparent;
+            border: 1px solid transparent;
+            border-radius: 4px;
+            padding: 2px 8px;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: #3f3f46;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .transpose-btn:hover {
+            background: #f4f4f5;
+            border-color: #d4d4d8;
+            color: #0f172a;
+        }
+        #transpose-semitones {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: #0284c7;
+            min-width: 48px;
+            text-align: center;
+            cursor: pointer;
+            padding: 2px 4px;
+            border-radius: 4px;
+            user-select: none;
+        }
+        #transpose-semitones:hover {
+            background: #f0f9ff;
+        }
+        #transpose-semitones.active {
+            color: #0d9488;
+            background: #f0fdfa;
+        }
+
         /* Split Panes Container */
         #panes-container {
             flex: 1;
@@ -468,6 +514,17 @@
             font-size: 1rem;
             line-height: 1.5;
             color: #27272a;
+        }
+        .docx-chord {
+            color: #0284c7;
+            font-weight: 600;
+        }
+        .docx-chord-transposed {
+            color: #0d9488;
+            font-weight: 700;
+            background-color: rgba(13, 148, 136, 0.08);
+            padding: 1px 2px;
+            border-radius: 3px;
         }
         .docx-content p {
             margin: 0.35em 0;
@@ -805,8 +862,16 @@
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <span id="chart-tuning-meta" style="font-size: 0.95rem; font-weight: 500; color: #0284c7;"></span>
                     </div>
-                    <div id="version-selector" style="display: none;">
-                        <!-- Dynamically populated alternate version tabs -->
+                    <div style="display: flex; align-items: center; gap: 8px;">
+                        <!-- Transpose Control Bar -->
+                        <div id="transpose-controls" style="display: none;" title="Transpose chord chart">
+                            <button type="button" class="transpose-btn" id="transpose-down-btn" title="Transpose down 1 semitone (b)">-1</button>
+                            <span id="transpose-semitones" title="Click to reset transposition">Orig</span>
+                            <button type="button" class="transpose-btn" id="transpose-up-btn" title="Transpose up 1 semitone (#)">+1</button>
+                        </div>
+                        <div id="version-selector" style="display: none;">
+                            <!-- Dynamically populated alternate version tabs -->
+                        </div>
                     </div>
                 </div>
                 <div class="pane-content" id="chart-container">
@@ -824,6 +889,6 @@
     </div>
 
     <!-- Application Script -->
-    <script src="app.js?v=1.13"></script>
+    <script src="app.js?v=1.14"></script>
 </body>
 </html>
