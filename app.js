@@ -349,11 +349,11 @@ if (window.pdfjsLib) {
 async function initApp() {
     try {
         const [songsRes, albumsRes, chartsRes, lyricsRes, audioRes] = await Promise.all([
-            fetch('songs.csv?v=1.18'),
-            fetch('albums.csv?v=1.18'),
-            fetch('charts.csv?v=1.18').catch(() => null),
-            fetch('lyrics.csv?v=1.18').catch(() => null),
-            fetch('audio.csv?v=1.18').catch(() => null)
+            fetch('songs.csv?v=1.19'),
+            fetch('albums.csv?v=1.19'),
+            fetch('charts.csv?v=1.19').catch(() => null),
+            fetch('lyrics.csv?v=1.19').catch(() => null),
+            fetch('audio.csv?v=1.19').catch(() => null)
         ]);
 
         const songsCsvText = await songsRes.text();
@@ -866,7 +866,9 @@ function selectSong(song, options = {}) {
     }
 
     const selectorContainer = document.getElementById("version-selector");
-    selectorContainer.innerHTML = "";
+    const dropdownContainer = document.getElementById("version-select-dropdown");
+    if (selectorContainer) selectorContainer.innerHTML = "";
+    if (dropdownContainer) dropdownContainer.innerHTML = "";
 
     // Determine target chart file index
     let activeFileIndex = 0;
@@ -878,28 +880,61 @@ function selectSong(song, options = {}) {
     currentChartIndex = activeFileIndex;
 
     if (files.length > 1) {
-        selectorContainer.style.display = "flex";
+        if (selectorContainer) selectorContainer.style.display = "flex";
+        if (dropdownContainer) dropdownContainer.style.display = "";
 
         files.forEach((file, index) => {
-            const btn = document.createElement("button");
             const fileExt = file.split('.').pop().toLowerCase();
             const stem = file.replace(/\.[^.]+$/, '');
             const dashParts = stem.split(/[-_]{1,2}/);
             const suffix = dashParts.length > 1 ? dashParts[dashParts.length - 1].trim() : `Version ${index + 1}`;
-            btn.innerText = `${suffix} (${fileExt})`;
-            if (index === activeFileIndex) btn.classList.add("active");
+            const labelText = `${suffix} (${fileExt})`;
 
-            btn.onclick = () => {
-                selectorContainer.querySelectorAll("button").forEach(b => b.classList.remove("active"));
-                btn.classList.add("active");
-                currentChartIndex = index;
-                updateViewStateUrl();
-                loadChartFile(file);
-            };
-            selectorContainer.appendChild(btn);
+            // Desktop tab button
+            if (selectorContainer) {
+                const btn = document.createElement("button");
+                btn.innerText = labelText;
+                if (index === activeFileIndex) btn.classList.add("active");
+
+                btn.onclick = () => {
+                    selectorContainer.querySelectorAll("button").forEach(b => b.classList.remove("active"));
+                    btn.classList.add("active");
+                    if (dropdownContainer) dropdownContainer.value = index;
+                    currentChartIndex = index;
+                    updateViewStateUrl();
+                    loadChartFile(file);
+                };
+                selectorContainer.appendChild(btn);
+            }
+
+            // Mobile dropdown option
+            if (dropdownContainer) {
+                const opt = document.createElement("option");
+                opt.value = index;
+                opt.innerText = labelText;
+                if (index === activeFileIndex) opt.selected = true;
+                dropdownContainer.appendChild(opt);
+            }
         });
+
+        if (dropdownContainer) {
+            dropdownContainer.onchange = (e) => {
+                const selectedIdx = parseInt(e.target.value, 10);
+                if (selectorContainer) {
+                    const buttons = selectorContainer.querySelectorAll("button");
+                    buttons.forEach((b, i) => {
+                        if (i === selectedIdx) b.classList.add("active");
+                        else b.classList.remove("active");
+                    });
+                }
+                currentChartIndex = selectedIdx;
+                updateViewStateUrl();
+                loadChartFile(files[selectedIdx]);
+            };
+        }
     } else {
-        selectorContainer.style.display = "none";
+        if (selectorContainer) selectorContainer.style.display = "none";
+        if (dropdownContainer) dropdownContainer.style.display = "none";
     }
 
     if (files.length > 0) {
@@ -1134,6 +1169,15 @@ function cleanMammothDocxHtml(html) {
     // 6. Normalize accidental spaces inside chords: e.g. "B  b" -> "Bb", "F  #" -> "F#"
     h = h.replace(/\b([A-Ga-g])\s+([b#])\b/g, '$1$2');
     
+    // 7. Smush unsmushed chord extensions separated by spaces:
+    // e.g. "C maj7" -> "Cmaj7", "Bb add9maj7" -> "Bbadd9maj7", "F add9" -> "Fadd9", "E add9" -> "Eadd9", "D sus" -> "Dsus"
+    const smushPattern = /\b([A-Ga-g][#b]?)\s+((?:maj|min|dim|aug|sus|add|m7|m9|m11)[a-zA-Z0-9#b+-]*)/g;
+    let prev = null;
+    while (prev !== h) {
+        prev = h;
+        h = h.replace(smushPattern, '$1$2');
+    }
+    
     return h;
 }
 let currentTransposeSemitones = 0;
@@ -1175,23 +1219,22 @@ function transposePitchString(pitch, semitones, preferFlat = false) {
 }
 
 // Regex matching individual chords and slash bass tokens across all Brad Yoder charts
-// Handles: G, f#m, F#7/A#, bm, /C#, /A, B579, Gadd9, C/E, Db, Eb, dm11, Em9-5, Gmaj7+11, Am#6, Dsus79, Emb5, G/Bo, etc.
-const CHORD_TOKEN_REGEX = /(?<![A-Za-z0-9_#*])(?:(\/[A-Ga-g][#b]?)|([A-Ga-g][#b]?)([mM]aj|[mM]in|dim|aug|sus|add|m)?([0-9#b+-]+)?(?:\/([A-Ga-g][#b]?)([0-9a-z#b+-]*)?)?)(?![A-Za-z0-9_#])/g;
+// Handles: G, f#m, f#msus, F#7/A#, bm, /C#, /A, B579, Gadd9, C/E, Db, Eb, dm11, Em9-5, Gmaj7+11, Am#6, Dsus79, Emb5, G/Bo, Bbadd9maj7, etc.
+const CHORD_TOKEN_REGEX = /(?<![A-Za-z0-9_#*])(?:(\/[A-Ga-g][#b]?)|([A-Ga-g][#b]?)((?:maj|min|dim|aug|sus|add|m|[0-9#b+-])*)(?:\/([A-Ga-g][#b]?)([0-9a-z#b+-]*)?)?)(?![A-Za-z0-9_#])/g;
 
 function transposeChordString(text, semitones, preferFlat = false) {
     if (semitones === 0) return text;
-    return text.replace(CHORD_TOKEN_REGEX, (match, soloSlash, root, quality, ext, bass, bassExt) => {
+    return text.replace(CHORD_TOKEN_REGEX, (match, soloSlash, root, qualityAndExt, bass, bassExt) => {
         if (soloSlash) {
             const pitch = soloSlash.slice(1);
             return '<span class="docx-chord-transposed">/' + transposePitchString(pitch, semitones, preferFlat) + '</span>';
         }
         if (!root) return match;
-        const qualityStr = quality || '';
-        const extStr = ext || '';
+        const bodyStr = qualityAndExt || '';
         const newRoot = transposePitchString(root, semitones, preferFlat);
         const bassExtStr = bassExt || '';
         const newBass = bass ? ('/' + transposePitchString(bass, semitones, preferFlat) + bassExtStr) : '';
-        return `<span class="docx-chord-transposed">${newRoot}${qualityStr}${extStr}${newBass}</span>`;
+        return `<span class="docx-chord-transposed">${newRoot}${bodyStr}${newBass}</span>`;
     });
 }
 

@@ -408,6 +408,18 @@
             color: #ffffff;
             border-color: #0284c7;
         }
+        #version-select-dropdown {
+            display: none;
+            padding: 4px 8px;
+            border: 1px solid #d4d4d8;
+            border-radius: 6px;
+            background: #ffffff;
+            font-size: 0.8rem;
+            font-weight: 500;
+            color: #3f3f46;
+            outline: none;
+            max-width: 170px;
+        }
 
         /* Transpose Controls */
         #transpose-controls {
@@ -782,11 +794,24 @@
                 font-size: 0.85rem;
             }
             .pane-header {
-                padding: 8px 12px;
-                min-height: 40px;
+                padding: 6px 10px;
+                min-height: 38px;
                 font-size: 0.85rem;
-                flex-wrap: wrap;
+                flex-wrap: nowrap;
+                justify-content: space-between;
                 gap: 6px;
+            }
+            #version-selector {
+                display: none !important;
+            }
+            #version-select-dropdown {
+                display: inline-block !important;
+            }
+            #chart-tuning-meta {
+                max-width: 110px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
             }
         }
 
@@ -891,6 +916,9 @@
                         <div id="version-selector" style="display: none;">
                             <!-- Dynamically populated alternate version tabs -->
                         </div>
+                        <select id="version-select-dropdown" aria-label="Select chart version" title="Select alternate chart version">
+                            <!-- Dynamically populated alternate version dropdown for mobile -->
+                        </select>
                     </div>
                 </div>
                 <div class="pane-content" id="chart-container">
@@ -908,6 +936,6 @@
     </div>
 
     <!-- Application Script -->
-    <script src="app.js?v=1.18"></script>
+    <script src="app.js?v=1.19"></script>
 </body>
 </html>
