@@ -349,11 +349,11 @@ if (window.pdfjsLib) {
 async function initApp() {
     try {
         const [songsRes, albumsRes, chartsRes, lyricsRes, audioRes] = await Promise.all([
-            fetch('songs.csv?v=1.14'),
-            fetch('albums.csv?v=1.14'),
-            fetch('charts.csv?v=1.14').catch(() => null),
-            fetch('lyrics.csv?v=1.14').catch(() => null),
-            fetch('audio.csv?v=1.14').catch(() => null)
+            fetch('songs.csv?v=1.15'),
+            fetch('albums.csv?v=1.15'),
+            fetch('charts.csv?v=1.15').catch(() => null),
+            fetch('lyrics.csv?v=1.15').catch(() => null),
+            fetch('audio.csv?v=1.15').catch(() => null)
         ]);
 
         const songsCsvText = await songsRes.text();
@@ -1106,6 +1106,7 @@ async function fetchChartBuffer(filename) {
 // Global transposition state for chord charts
 let currentTransposeSemitones = 0;
 let rawCurrentDocxHtml = null;
+let currentAccidentalMode = 'auto'; // 'auto', 'sharp', 'flat'
 
 // Pitch transposition data structures
 const PITCH_SEMITONE_MAP = {
@@ -1165,10 +1166,18 @@ function transposeChordString(text, semitones, preferFlat = false) {
 
 function transposeChartHtml(html, semitones) {
     if (!html) return html;
-    if (semitones === 0) return html;
+    if (semitones === 0 && currentAccidentalMode === 'auto') return html;
 
-    // Decide flat vs sharp preference based on transposition direction or target
-    const preferFlat = semitones < 0;
+    // Decide flat vs sharp preference based on accidentalMode toggle or transposition direction
+    let preferFlat = false;
+    if (currentAccidentalMode === 'flat') {
+        preferFlat = true;
+    } else if (currentAccidentalMode === 'sharp') {
+        preferFlat = false;
+    } else {
+        // 'auto' mode: default to flat when transposing downward, sharp when upward
+        preferFlat = semitones < 0;
+    }
 
     // Use DOMParser to process paragraph by paragraph without corrupting HTML tags
     const parser = new DOMParser();
@@ -1198,6 +1207,7 @@ function transposeChartHtml(html, semitones) {
 function updateTransposeUI() {
     const controls = document.getElementById("transpose-controls");
     const label = document.getElementById("transpose-semitones");
+    const accidentalBtn = document.getElementById("transpose-accidental-btn");
     if (!controls || !label) return;
 
     if (!rawCurrentDocxHtml) {
@@ -1215,6 +1225,22 @@ function updateTransposeUI() {
         label.innerText = sign;
         label.classList.add("active");
         label.title = `Transposed ${sign} semitones (click to reset to original)`;
+    }
+
+    if (accidentalBtn) {
+        if (currentAccidentalMode === 'sharp') {
+            accidentalBtn.innerText = "♯";
+            accidentalBtn.title = "Spelling: Sharps (click for Flats ♭)";
+            accidentalBtn.style.color = "#0284c7";
+        } else if (currentAccidentalMode === 'flat') {
+            accidentalBtn.innerText = "♭";
+            accidentalBtn.title = "Spelling: Flats (click for Auto)";
+            accidentalBtn.style.color = "#0284c7";
+        } else {
+            accidentalBtn.innerText = "♯/♭";
+            accidentalBtn.title = "Spelling: Auto (click for Sharps ♯)";
+            accidentalBtn.style.color = "#71717a";
+        }
     }
 }
 
@@ -1236,7 +1262,30 @@ function applyTransposition(delta, absolute = false) {
     const docxDiv = chartContainer.querySelector(".docx-content");
     if (!docxDiv) return;
 
-    if (currentTransposeSemitones === 0) {
+    if (currentTransposeSemitones === 0 && currentAccidentalMode === 'auto') {
+        docxDiv.innerHTML = rawCurrentDocxHtml;
+    } else {
+        docxDiv.innerHTML = transposeChartHtml(rawCurrentDocxHtml, currentTransposeSemitones);
+    }
+}
+
+function toggleAccidentalMode() {
+    if (currentAccidentalMode === 'auto') {
+        currentAccidentalMode = 'sharp';
+    } else if (currentAccidentalMode === 'sharp') {
+        currentAccidentalMode = 'flat';
+    } else {
+        currentAccidentalMode = 'auto';
+    }
+
+    updateTransposeUI();
+
+    const chartContainer = document.getElementById("chart-container");
+    if (!chartContainer) return;
+    const docxDiv = chartContainer.querySelector(".docx-content");
+    if (!docxDiv || !rawCurrentDocxHtml) return;
+
+    if (currentTransposeSemitones === 0 && currentAccidentalMode === 'auto') {
         docxDiv.innerHTML = rawCurrentDocxHtml;
     } else {
         docxDiv.innerHTML = transposeChartHtml(rawCurrentDocxHtml, currentTransposeSemitones);
@@ -1247,6 +1296,7 @@ function setupTransposeControls() {
     const downBtn = document.getElementById("transpose-down-btn");
     const upBtn = document.getElementById("transpose-up-btn");
     const resetBtn = document.getElementById("transpose-semitones");
+    const accidentalBtn = document.getElementById("transpose-accidental-btn");
 
     if (downBtn) {
         downBtn.onclick = (e) => {
@@ -1263,7 +1313,14 @@ function setupTransposeControls() {
     if (resetBtn) {
         resetBtn.onclick = (e) => {
             e.stopPropagation();
+            currentAccidentalMode = 'auto';
             applyTransposition(0, true);
+        };
+    }
+    if (accidentalBtn) {
+        accidentalBtn.onclick = (e) => {
+            e.stopPropagation();
+            toggleAccidentalMode();
         };
     }
 }
