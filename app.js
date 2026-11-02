@@ -349,11 +349,11 @@ if (window.pdfjsLib) {
 async function initApp() {
     try {
         const [songsRes, albumsRes, chartsRes, lyricsRes, audioRes] = await Promise.all([
-            fetch('songs.csv?v=1.20'),
-            fetch('albums.csv?v=1.20'),
-            fetch('charts.csv?v=1.20').catch(() => null),
-            fetch('lyrics.csv?v=1.20').catch(() => null),
-            fetch('audio.csv?v=1.20').catch(() => null)
+            fetch('songs.csv?v=1.21'),
+            fetch('albums.csv?v=1.21'),
+            fetch('charts.csv?v=1.21').catch(() => null),
+            fetch('lyrics.csv?v=1.21').catch(() => null),
+            fetch('audio.csv?v=1.21').catch(() => null)
         ]);
 
         const songsCsvText = await songsRes.text();
@@ -1185,29 +1185,30 @@ let isFancyFormattingMode = true; // Toggle for superscript/subscript visual sty
 
 // Pitch transposition data structures
 const PITCH_SEMITONE_MAP = {
-    'C': 0, 'B#': 0,
-    'C#': 1, 'Db': 1,
+    'C': 0, 'B#': 0, 'B♯': 0,
+    'C#': 1, 'C♯': 1, 'Db': 1, 'D♭': 1,
     'D': 2,
-    'D#': 3, 'Eb': 3,
-    'E': 4, 'Fb': 4,
-    'F': 5, 'E#': 5,
-    'F#': 6, 'Gb': 6,
+    'D#': 3, 'D♯': 3, 'Eb': 3, 'E♭': 3,
+    'E': 4, 'Fb': 4, 'F♭': 4,
+    'F': 5, 'E#': 5, 'E♯': 5,
+    'F#': 6, 'F♯': 6, 'Gb': 6, 'G♭': 6,
     'G': 7,
-    'G#': 8, 'Ab': 8,
+    'G#': 8, 'G♯': 8, 'Ab': 8, 'A♭': 8,
     'A': 9,
-    'A#': 10, 'Bb': 10,
-    'B': 11, 'Cb': 11
+    'A#': 10, 'A♯': 10, 'Bb': 10, 'B♭': 10,
+    'B': 11, 'Cb': 11, 'C♭': 11
 };
-const SHARP_SCALE = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
-const FLAT_SCALE  = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
+// Use real musical typographic glyphs: Sharp ♯ (U+266F) and Flat ♭ (U+266D)
+const SHARP_SCALE = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+const FLAT_SCALE  = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'];
 
 function transposePitchString(pitch, semitones, preferFlat = false) {
     if (!pitch) return pitch;
     const isLower = pitch === pitch.toLowerCase();
-    // Normalize pitch casing e.g. "f#" -> "F#", "eb" -> "Eb", "b" -> "B"
+    // Normalize pitch casing e.g. "f#" -> "F#", "f♯" -> "F♯", "eb" -> "Eb", "e♭" -> "E♭", "b" -> "B"
     let norm = pitch.charAt(0).toUpperCase();
     if (pitch.length > 1) {
-        norm += pitch.slice(1).toLowerCase();
+        norm += pitch.slice(1).replace(/b/g, 'b');
     }
     if (!(norm in PITCH_SEMITONE_MAP)) return pitch;
     let semitoneVal = (PITCH_SEMITONE_MAP[norm] + semitones) % 12;
@@ -1218,9 +1219,10 @@ function transposePitchString(pitch, semitones, preferFlat = false) {
 }
 
 // Regex matching individual chords and slash bass tokens across all Brad Yoder charts
-// Handles: G, f#m, f#msus, F#7/A#, bm, /C#, /A, B579, Gadd9, C/E, Db, Eb, dm11, Em9-5, Gmaj7+11, Am#6, Dsus79, Emb5, G/Bo, Bbadd9maj7,
+// Handles standard ASCII (#, b) and Unicode musical accidentals (♯, ♭):
+// Handles: G, f#m, f#msus, F#7/A#, bm, /C#, /A, B579, Gadd9, C/E, D♭, E♭, dm11, Em9-5, Gmaj7+11, Am#6, Dsus79, Emb5, G/Bo, Bbadd9maj7,
 // and supports inner HTML tags like dm<sup>9</sup> or F<sup>maj7</sup> in fancy mode.
-const CHORD_TOKEN_REGEX = /(?<![A-Za-z0-9_#*])(?:(\/[A-Ga-g][#b]?)|([A-Ga-g][#b]?)((?:<[^>]+>|maj|min|dim|aug|sus|add|m|[0-9#b+-])*)(?:\/([A-Ga-g][#b]?)([0-9a-z#b+-]*)?)?)(?![A-Za-z0-9_#])/g;
+const CHORD_TOKEN_REGEX = /(?<![A-Za-z0-9_#♯*])(?:(\/[A-Ga-g][#b♯♭]?)|([A-Ga-g][#b♯♭]?)((?:<[^>]+>|maj|min|dim|aug|sus|add|m|[0-9#b♯♭+-])*)(?:\/([A-Ga-g][#b♯♭]?)([0-9a-z#b♯♭+-]*)?)?)(?![A-Za-z0-9_#♯])/g;
 
 function transposeChordString(text, semitones, preferFlat = false) {
     if (semitones === 0) return text;
