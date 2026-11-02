@@ -349,11 +349,11 @@ if (window.pdfjsLib) {
 async function initApp() {
     try {
         const [songsRes, albumsRes, chartsRes, lyricsRes, audioRes] = await Promise.all([
-            fetch('songs.csv?v=1.17'),
-            fetch('albums.csv?v=1.17'),
-            fetch('charts.csv?v=1.17').catch(() => null),
-            fetch('lyrics.csv?v=1.17').catch(() => null),
-            fetch('audio.csv?v=1.17').catch(() => null)
+            fetch('songs.csv?v=1.18'),
+            fetch('albums.csv?v=1.18'),
+            fetch('charts.csv?v=1.18').catch(() => null),
+            fetch('lyrics.csv?v=1.18').catch(() => null),
+            fetch('audio.csv?v=1.18').catch(() => null)
         ]);
 
         const songsCsvText = await songsRes.text();
@@ -1103,7 +1103,39 @@ async function fetchChartBuffer(filename) {
     return { ok: false };
 }
 
-// Global transposition state for chord charts
+// Normalize Mammoth HTML output by properly resolving Word superscript/subscript formatting artifacts.
+// In MS Word, Brad writes flats as root letter + superscript 'b' (e.g. B<sup>b</sup>),
+// sharps as root + superscript '#' (F<sup>#</sup>), slash chords as <sup>Eb/</sup>Bb or <sup>B</sup><sup>b/</sup>D,
+// and chord qualities/extensions as <sup>9</sup>, <sup>maj7</sup>, <sup>sus</sup>.
+// This function collapses them into cohesive, standard musical tokens before rendering and transposing.
+function cleanMammothDocxHtml(html) {
+    if (!html) return html;
+    
+    // 1. Merge adjacent sup tags: <sup>X</sup><sup>Y</sup> -> <sup>XY</sup>
+    let h = html.replace(/<\/sup>\s*<sup>/g, '');
+    
+    // 2. Attach superscript accidentals (b, #) to the preceding musical root letter:
+    // e.g. B<sup>b</sup> -> Bb, B<sup>b/</sup> -> Bb/, F<sup>#</sup> -> F#
+    h = h.replace(/([A-Ga-g])\s*<sup>\s*b\s*<\/sup>/gi, '$1b');
+    h = h.replace(/([A-Ga-g])\s*<sup>\s*#\s*<\/sup>/g, '$1#');
+    h = h.replace(/([A-Ga-g])\s*<sup>\s*b([/a-zA-Z0-9_#+-]*)\s*<\/sup>/gi, '$1b$2');
+    h = h.replace(/([A-Ga-g])\s*<sup>\s*#([/a-zA-Z0-9_#+-]*)\s*<\/sup>/g, '$1#$2');
+    
+    // 3. Attach superscript slash chords:
+    // e.g. <sup>F/</sup>A -> F/A, <sup>Eb/</sup>Bb -> Eb/Bb
+    h = h.replace(/<sup>\s*([A-Ga-g][#b]?\/)\s*<\/sup>\s*([A-Ga-g][#b]?)/g, '$1$2');
+    
+    // 4. Attach standalone superscript slashes: e.g. <sup>/</sup>C -> /C
+    h = h.replace(/<sup>\s*\/\s*<\/sup>\s*([A-Ga-g][#b]?)/g, '/$1');
+    
+    // 5. Unwrap remaining superscript/subscript tags in chord lines so extensions like dm<sup>9</sup>, F<sup>maj7</sup>, C<sup>sus</sup> are clean
+    h = h.replace(/<\/?(?:sup|sub)[^>]*>/gi, '');
+    
+    // 6. Normalize accidental spaces inside chords: e.g. "B  b" -> "Bb", "F  #" -> "F#"
+    h = h.replace(/\b([A-Ga-g])\s+([b#])\b/g, '$1$2');
+    
+    return h;
+}
 let currentTransposeSemitones = 0;
 let rawCurrentDocxHtml = null;
 let currentAccidentalMode = 'auto'; // 'auto', 'sharp', 'flat'
@@ -1357,6 +1389,9 @@ async function loadChartFile(filename) {
                 .replace(/[\u{1F86A}\u{1F862}\uF0E0\uF0D8🡪]+/gu, '→')
                 .replace(/[\u{1F869}\u{1F861}\uF0E1🡩]+/gu, '↑')
                 .replace(/[\u{1F86B}\u{1F863}\uF0E2🡫]+/gu, '↓');
+                
+            // Clean Word formatting artifacts (superscripts for flats like B<sup>b</sup>, slashes, etc.)
+            docxHtml = cleanMammothDocxHtml(docxHtml);
                 
             // Check if this chart is a NUMBERS / Nashville chart (which is key-independent and shouldn't transpose)
             const isNumbersChart = /[-_ ]numbers(?:\.|\b)/i.test(filename) || 
