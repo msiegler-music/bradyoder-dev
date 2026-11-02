@@ -353,7 +353,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.25";
+const APP_BUILD_VERSION = "v1.26";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1195,14 +1195,24 @@ function cleanMammothDocxHtml(html) {
         h = h.replace(smushPattern, '$1$2');
     }
     
-    // 7. Convert raw ASCII # and b on musical chords to authentic typographic glyphs: ♯ and ♭
-    // E.g. A/C# -> A/C♯, /F# -> /F♯, F#7 -> F♯7, Bb -> B♭, Eb/G -> E♭/G, Db -> D♭, Ab -> A♭
+    return h;
+}
+
+// Convert chord accidentals (# and b) to authentic musical typographic glyphs (♯ and ♭)
+function applyMusicalAccidentalGlyphs(html) {
+    if (!html) return html;
+    let h = html;
     h = h.replace(/(?<=\/[A-Ga-g])#/g, '♯');
     h = h.replace(/\b([A-Ga-g])#/g, '$1♯');
     h = h.replace(/\b([A-Ga-g])b(?=[0-9/m\s:\|,\(\)\-\.<>]|$)/g, '$1♭');
     h = h.replace(/(?<=\/[A-Ga-g])b(?=[0-9/m\s:\|,\(\)\-\.<>]|$)/g, '♭');
-    
     return h;
+}
+
+// Revert musical accidental glyphs (♯ and ♭) to standard ASCII (# and b)
+function revertToAsciiAccidentals(html) {
+    if (!html) return html;
+    return html.replace(/♯/g, '#').replace(/♭/g, 'b');
 }
 let currentTransposeSemitones = 0;
 let rawCurrentDocxHtml = null;
@@ -1224,9 +1234,12 @@ const PITCH_SEMITONE_MAP = {
     'A#': 10, 'A♯': 10, 'Bb': 10, 'B♭': 10,
     'B': 11, 'Cb': 11, 'C♭': 11
 };
-// Use real musical typographic glyphs: Sharp ♯ (U+266F) and Flat ♭ (U+266D)
-const SHARP_SCALE = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
-const FLAT_SCALE  = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'];
+// Scales with authentic musical glyphs: Sharp ♯ (U+266F) and Flat ♭ (U+266D)
+const SHARP_SCALE_FANCY = ['C', 'C♯', 'D', 'D♯', 'E', 'F', 'F♯', 'G', 'G♯', 'A', 'A♯', 'B'];
+const FLAT_SCALE_FANCY  = ['C', 'D♭', 'D', 'E♭', 'E', 'F', 'G♭', 'G', 'A♭', 'A', 'B♭', 'B'];
+// Scales with standard ASCII characters: Sharp # and Flat b
+const SHARP_SCALE_ASCII = ['C', 'C#', 'D', 'D#', 'E', 'F', 'F#', 'G', 'G#', 'A', 'A#', 'B'];
+const FLAT_SCALE_ASCII  = ['C', 'Db', 'D', 'Eb', 'E', 'F', 'Gb', 'G', 'Ab', 'A', 'Bb', 'B'];
 
 function transposePitchString(pitch, semitones, preferFlat = false) {
     if (!pitch) return pitch;
@@ -1239,7 +1252,12 @@ function transposePitchString(pitch, semitones, preferFlat = false) {
     if (!(norm in PITCH_SEMITONE_MAP)) return pitch;
     let semitoneVal = (PITCH_SEMITONE_MAP[norm] + semitones) % 12;
     if (semitoneVal < 0) semitoneVal += 12;
-    const scale = preferFlat ? FLAT_SCALE : SHARP_SCALE;
+    let scale;
+    if (isFancyFormattingMode) {
+        scale = preferFlat ? FLAT_SCALE_FANCY : SHARP_SCALE_FANCY;
+    } else {
+        scale = preferFlat ? FLAT_SCALE_ASCII : SHARP_SCALE_ASCII;
+    }
     const transposed = scale[semitoneVal];
     return isLower ? transposed.toLowerCase() : transposed;
 }
@@ -1356,6 +1374,24 @@ function updateTransposeUI() {
     }
 }
 
+function renderDocxChartHtml() {
+    const chartContainer = document.getElementById("chart-container");
+    if (!chartContainer) return;
+    const docxDiv = chartContainer.querySelector(".docx-content");
+    if (!docxDiv || !rawCurrentDocxHtml) return;
+
+    let html;
+    if (currentTransposeSemitones === 0 && currentAccidentalMode === 'auto') {
+        html = isFancyFormattingMode ? applyMusicalAccidentalGlyphs(rawCurrentDocxHtml) : revertToAsciiAccidentals(rawCurrentDocxHtml);
+    } else {
+        html = transposeChartHtml(rawCurrentDocxHtml, currentTransposeSemitones);
+        if (!isFancyFormattingMode) {
+            html = revertToAsciiAccidentals(html);
+        }
+    }
+    docxDiv.innerHTML = html;
+}
+
 function toggleFancyFormattingMode() {
     isFancyFormattingMode = !isFancyFormattingMode;
     const chartContainer = document.getElementById("chart-container");
@@ -1369,6 +1405,7 @@ function toggleFancyFormattingMode() {
             }
         }
     }
+    renderDocxChartHtml();
     updateTransposeUI();
 }
 
@@ -1384,17 +1421,7 @@ function applyTransposition(delta, absolute = false) {
     }
 
     updateTransposeUI();
-
-    const chartContainer = document.getElementById("chart-container");
-    if (!chartContainer) return;
-    const docxDiv = chartContainer.querySelector(".docx-content");
-    if (!docxDiv) return;
-
-    if (currentTransposeSemitones === 0 && currentAccidentalMode === 'auto') {
-        docxDiv.innerHTML = rawCurrentDocxHtml;
-    } else {
-        docxDiv.innerHTML = transposeChartHtml(rawCurrentDocxHtml, currentTransposeSemitones);
-    }
+    renderDocxChartHtml();
 }
 
 function toggleAccidentalMode() {
@@ -1407,17 +1434,7 @@ function toggleAccidentalMode() {
     }
 
     updateTransposeUI();
-
-    const chartContainer = document.getElementById("chart-container");
-    if (!chartContainer) return;
-    const docxDiv = chartContainer.querySelector(".docx-content");
-    if (!docxDiv || !rawCurrentDocxHtml) return;
-
-    if (currentTransposeSemitones === 0 && currentAccidentalMode === 'auto') {
-        docxDiv.innerHTML = rawCurrentDocxHtml;
-    } else {
-        docxDiv.innerHTML = transposeChartHtml(rawCurrentDocxHtml, currentTransposeSemitones);
-    }
+    renderDocxChartHtml();
 }
 
 function setupTransposeControls() {
@@ -1506,7 +1523,11 @@ async function loadChartFile(filename) {
                 rawCurrentDocxHtml = null; // Do not enable transposition controls for numbers charts
             }
             const fancyClass = isFancyFormattingMode ? "docx-fancy-mode" : "";
-            container.innerHTML = `<div class="docx-content ${fancyClass}">${docxHtml}</div>`;
+            let initialHtml = docxHtml;
+            if (rawCurrentDocxHtml) {
+                initialHtml = isFancyFormattingMode ? applyMusicalAccidentalGlyphs(docxHtml) : revertToAsciiAccidentals(docxHtml);
+            }
+            container.innerHTML = `<div class="docx-content ${fancyClass}">${initialHtml}</div>`;
             updateTransposeUI();
         } else if (ext === 'pdf') {
             // PDF.js renders PDF pages client-side onto HTML5 Canvas elements
