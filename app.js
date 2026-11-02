@@ -349,11 +349,11 @@ if (window.pdfjsLib) {
 async function initApp() {
     try {
         const [songsRes, albumsRes, chartsRes, lyricsRes, audioRes] = await Promise.all([
-            fetch('songs.csv?v=1.15'),
-            fetch('albums.csv?v=1.15'),
-            fetch('charts.csv?v=1.15').catch(() => null),
-            fetch('lyrics.csv?v=1.15').catch(() => null),
-            fetch('audio.csv?v=1.15').catch(() => null)
+            fetch('songs.csv?v=1.16'),
+            fetch('albums.csv?v=1.16'),
+            fetch('charts.csv?v=1.16').catch(() => null),
+            fetch('lyrics.csv?v=1.16').catch(() => null),
+            fetch('audio.csv?v=1.16').catch(() => null)
         ]);
 
         const songsCsvText = await songsRes.text();
@@ -1359,7 +1359,14 @@ async function loadChartFile(filename) {
                 .replace(/[\u{1F869}\u{1F861}\uF0E1🡩]+/gu, '↑')
                 .replace(/[\u{1F86B}\u{1F863}\uF0E2🡫]+/gu, '↓');
                 
-            rawCurrentDocxHtml = docxHtml;
+            // Check if this chart is a NUMBERS / Nashville chart (which is key-independent and shouldn't transpose)
+            const isNumbersChart = /[-_ ]numbers(?:\.|\b)/i.test(filename) || 
+                                   /[-_ ]numbers(?:\.|\b)/i.test(fileResult.path || "");
+            if (!isNumbersChart) {
+                rawCurrentDocxHtml = docxHtml;
+            } else {
+                rawCurrentDocxHtml = null; // Do not enable transposition controls for numbers charts
+            }
             container.innerHTML = `<div class="docx-content">${docxHtml}</div>`;
             updateTransposeUI();
         } else if (ext === 'pdf') {
