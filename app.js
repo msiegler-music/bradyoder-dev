@@ -353,7 +353,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.23";
+const APP_BUILD_VERSION = "v1.24";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1195,6 +1195,13 @@ function cleanMammothDocxHtml(html) {
         h = h.replace(smushPattern, '$1$2');
     }
     
+    // 7. Convert raw ASCII # and b on musical chords to authentic typographic glyphs: ♯ and ♭
+    // E.g. A/C# -> A/C♯, /F# -> /F♯, F#7 -> F♯7, Bb -> B♭, Eb/G -> E♭/G, Db -> D♭, Ab -> A♭
+    h = h.replace(/(?<=\/[A-Ga-g])#/g, '♯');
+    h = h.replace(/\b([A-Ga-g])#/g, '$1♯');
+    h = h.replace(/\b([A-Ga-g])b(?=[0-9/m\s:\|,\(\)\-\.<>]|$)/g, '$1♭');
+    h = h.replace(/(?<=\/[A-Ga-g])b(?=[0-9/m\s:\|,\(\)\-\.<>]|$)/g, '♭');
+    
     return h;
 }
 let currentTransposeSemitones = 0;
@@ -1261,7 +1268,6 @@ function transposeChordString(text, semitones, preferFlat = false) {
 
 function transposeChartHtml(html, semitones) {
     if (!html) return html;
-    if (semitones === 0 && currentAccidentalMode === 'auto') return html;
 
     // Decide flat vs sharp preference based on accidentalMode toggle or transposition direction
     let preferFlat = false;
@@ -1287,7 +1293,7 @@ function transposeChartHtml(html, semitones) {
         if (text.includes('|') || text.includes('||:') || text.includes(':||')) {
             // Chord measure line
             p.innerHTML = transposeChordString(p.innerHTML, semitones, preferFlat);
-        } else if (text.includes('capo') || text.includes('(') && text.includes(')')) {
+        } else if (text.includes('capo') || (text.includes('(') && text.includes(')'))) {
             // Header line with key metadata like "(D, C capo 2)" or "(Eb=C capo3)"
             p.innerHTML = p.innerHTML.replace(/\(([^)]+)\)/g, (parenMatch, innerContent) => {
                 const transposedInner = transposeChordString(innerContent, semitones, preferFlat);
