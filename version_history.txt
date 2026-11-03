@@ -325,5 +325,14 @@ v3.38 - Interactive In-App Revision History Modal (Nov 02, 2026)
   * Styled with backdrop blur, smooth scale-in transitions, ESC key dismiss, and direct
     link to open raw log.
 - Incremented cache buster to v=1.38.
+
+v3.39 - Raw Volta Endings in Plain Mode & Multi-Line Lookahead (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- In Plain mode (`[¶]` OFF), preserved the original Word docx repeat lines (`1._____ 2._____`)
+  completely untouched as raw ASCII fallback so no original authoring notation is lost.
+- In Fancy mode (`[¶]` ON), expanded volta detection lookahead to bridge across intervening
+  section headers (e.g. "Better With Practice", where `2/2 1.___ 2.____` is separated from
+  the repeat chord line by `VERSE 1: 1/2 2/2`).
+- Incremented cache buster to v=1.39.
 ================================================================================
 

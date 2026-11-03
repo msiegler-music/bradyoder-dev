@@ -492,7 +492,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.38";
+const APP_BUILD_VERSION = "v1.39";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1480,15 +1480,15 @@ function revertToAsciiAccidentals(html) {
 }
 
 // Convert Word-authored 1st and 2nd repeat indicators into authentic sheet-music volta brackets:
-// In Word docx charts (e.g. Matter of Time, Lite Brite, Local Band):
+// In Word docx charts (e.g. Matter of Time, Better With Practice, Lite Brite, Local Band):
 // Brad wrote "1._________ 2.______" on the line above repeat measures.
 // In Fancy mode ([¶] ON):
 // - Renders clean CSS volta brackets over the respective measures:
 //   Ending 1 has a closed right tick at ':||', Ending 2 has an open right tick.
 // In Plain mode ([¶] OFF):
-// - Flattens cleanly to inline measure indicators: [1. G | D :||] [2. G | D B7/D# |]
+// - Leaves the original docx volta bars and ASCII layout 100% as-is so users see Brad's exact raw notation.
 function formatVoltaEndings(html, isFancy) {
-    if (!html) return html;
+    if (!html || !isFancy) return html;
     const ENDING_HDR_REGEX = /(?:\b|\s)(1\.[_\s]+(?:2\.|➔|->|\uf0e0)[_\s]*)/i;
 
     const paras = html.match(/<p[^>]*>[\s\S]*?<\/p>/gi);
@@ -1501,18 +1501,32 @@ function formatVoltaEndings(html, isFancy) {
         const txtCurr = pCurr.replace(/<[^>]+>/g, '');
         const mHdr = txtCurr.match(ENDING_HDR_REGEX);
 
-        if (mHdr && i + 1 < paras.length) {
-            const pNext = paras[i + 1];
-            const txtNext = pNext.replace(/<[^>]+>/g, '');
+        if (mHdr) {
+            // Look ahead up to 2 paragraphs for the target chord line containing ':||'
+            // (handles cases like 'Better With Practice' where 'VERSE 1: 1/2 2/2' sits between the 1.___ 2.___ line and the chords)
+            let targetIdx = -1;
+            for (let k = i + 1; k < Math.min(i + 3, paras.length); k++) {
+                const txtCandidate = paras[k].replace(/<[^>]+>/g, '');
+                if (txtCandidate.includes(':||')) {
+                    targetIdx = k;
+                    break;
+                }
+            }
 
-            if (txtNext.includes(':||')) {
+            if (targetIdx !== -1) {
                 // 1. Clean the header line by stripping the repeat underlines
                 const cleanedHdrTxt = txtCurr.replace(/\s*1\.[_\s]+(?:2\.|➔|->|\uf0e0)[_\s]*/gi, '').trim();
                 if (cleanedHdrTxt) {
                     outParas.push(`<p>${cleanedHdrTxt}</p>`);
                 }
 
-                // 2. Wrap ending measures in pNext with volta brackets
+                // 2. Add any intervening lines (e.g. 'VERSE 1: 1/2 2/2') as-is
+                for (let j = i + 1; j < targetIdx; j++) {
+                    outParas.push(paras[j]);
+                }
+
+                // 3. Wrap ending measures in paras[targetIdx] with volta brackets
+                const pNext = paras[targetIdx];
                 const innerNext = pNext.replace(/^<p[^>]*>/i, '').replace(/<\/p>$/i, '');
                 const repParts = innerNext.split(':||');
                 const beforeRep = repParts[0];
@@ -1544,19 +1558,12 @@ function formatVoltaEndings(html, isFancy) {
                 const ending1Content = partsBefore.slice(splitIdx).join('|');
                 const ending2Content = ending2Body;
 
-                let chordP;
-                if (isFancy) {
-                    const v1 = `<span class="volta-box volta-1"><span class="volta-num">1.</span><span class="volta-content">${ending1Content}:||</span></span>`;
-                    const v2 = `<span class="volta-box volta-2"><span class="volta-num">2.</span><span class="volta-content">${ending2Content}${sectionEnd}</span></span>`;
-                    chordP = `<p>${mainBody}|${v1} ${v2}</p>`;
-                } else {
-                    const v1Txt = ending1Content.trim();
-                    const v2Txt = ending2Content.trim();
-                    chordP = `<p>${mainBody}| [1. ${v1Txt} :||] [2. ${v2Txt} ${sectionEnd}]</p>`;
-                }
+                const v1 = `<span class="volta-box volta-1"><span class="volta-num">1.</span><span class="volta-content">${ending1Content}:||</span></span>`;
+                const v2 = `<span class="volta-box volta-2"><span class="volta-num">2.</span><span class="volta-content">${ending2Content}${sectionEnd}</span></span>`;
+                const chordP = `<p>${mainBody}|${v1} ${v2}</p>`;
 
                 outParas.push(chordP);
-                i += 2;
+                i = targetIdx + 1;
                 continue;
             }
         }
