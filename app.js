@@ -353,7 +353,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.29";
+const APP_BUILD_VERSION = "v1.30";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1447,7 +1447,7 @@ function updateTransposeUI() {
     }
 }
 
-// Generate the top tuning/capo banner for the chart
+// Generate the top tuning/capo banner for the chart with dynamic Capo fret shifting
 function getTuningBannerHtml(semitones) {
     if (!currentActiveSong) return '';
     const rawTuning = (currentActiveSong.tuning_capo || '').trim();
@@ -1462,28 +1462,55 @@ function getTuningBannerHtml(semitones) {
         preferFlat = semitones < 0;
     }
 
-    // Transpose chord tokens inside the tuning string (e.g. D (G/Em, capo 7) -> E (A/F♯m, capo 7))
-    const displayTuning = rawTuning.replace(CHORD_TOKEN_REGEX, (match, soloSlash, root, qualityAndExt, bass, bassExt) => {
-        if (soloSlash) {
-            const pitch = soloSlash.slice(1);
-            return '/' + transposePitchString(pitch, semitones, preferFlat);
-        }
-        if (!root) return match;
-        const upperRoot = root.toUpperCase();
-        if (upperRoot === 'DADGAD' || upperRoot === 'CAPO' || upperRoot === 'OPEN') return match;
-        const newRoot = transposePitchString(root, semitones, preferFlat);
-        let body = (qualityAndExt || '');
+    let displayTuning = rawTuning;
+
+    if (semitones === 0) {
         if (isFancyFormattingMode) {
-            body = body.replace(/#/g, '♯').replace(/b/g, '♭');
+            displayTuning = applyMusicalAccidentalGlyphs(displayTuning);
         } else {
-            body = body.replace(/♯/g, '#').replace(/♭/g, 'b');
+            displayTuning = revertToAsciiAccidentals(displayTuning);
         }
-        let newBass = '';
-        if (bass) {
-            newBass = '/' + transposePitchString(bass, semitones, preferFlat) + (bassExt || '');
+    } else {
+        // 1. Transpose the root sounding key (first pitch at beginning of string)
+        displayTuning = displayTuning.replace(/^\s*([A-Ga-g][#b♯♭]?(?:\/[A-Ga-g][#b♯♭]?)?)/, (m, fullKey) => {
+            if (fullKey.includes('/')) {
+                const parts = fullKey.split('/');
+                return transposePitchString(parts[0], semitones, preferFlat) + '/' + transposePitchString(parts[1], semitones, preferFlat);
+            }
+            return transposePitchString(fullKey, semitones, preferFlat);
+        });
+
+        // 2. Dynamically calculate the new Capo fret position:
+        // By shifting the capo fret by +semitones, the guitarist maintains the exact same hand shapes!
+        // E.g. "D (G/Em, capo 7)" + 1 -> "D♯ (G/Em, capo 8)"
+        // "D (G/Em, capo 7)" - 2 -> "C (G/Em, capo 5)"
+        // "D (G/Em, capo 7)" - 7 -> "G (G/Em, open (no capo))"
+        const capoRegex = /\bcapo\s*(\d+)(!?)/i;
+        const capoMatch = displayTuning.match(capoRegex);
+        if (capoMatch) {
+            const origFret = parseInt(capoMatch[1], 10);
+            const bang = capoMatch[2] || '';
+            const newFret = origFret + semitones;
+            let newCapoStr;
+            if (newFret === 0) {
+                newCapoStr = 'open (no capo)';
+            } else if (newFret > 0) {
+                newCapoStr = `capo ${newFret}${bang}`;
+            } else {
+                // When new fret is negative, wrap around 12 frets (e.g. fret -2 -> fret 10)
+                const wrappedFret = ((newFret % 12) + 12) % 12;
+                newCapoStr = `capo ${wrappedFret}${bang}`;
+            }
+            displayTuning = displayTuning.replace(capoRegex, newCapoStr);
         }
-        return `${newRoot}${body}${newBass}`;
-    });
+
+        // Apply accidental styling
+        if (isFancyFormattingMode) {
+            displayTuning = applyMusicalAccidentalGlyphs(displayTuning);
+        } else {
+            displayTuning = revertToAsciiAccidentals(displayTuning);
+        }
+    }
 
     let transBadge = '';
     if (semitones !== 0) {
