@@ -353,7 +353,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.34";
+const APP_BUILD_VERSION = "v1.35";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
