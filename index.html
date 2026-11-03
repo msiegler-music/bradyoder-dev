@@ -680,6 +680,54 @@
             vertical-align: sub !important;
             line-height: 0 !important;
         }
+        /* Authentic sheet-music volta brackets for 1st and 2nd repeat endings */
+        .docx-content.docx-fancy-mode .volta-box {
+            display: inline-flex;
+            flex-direction: column;
+            position: relative;
+            border-top: 1.5px solid #2563eb;
+            border-left: 1.5px solid #2563eb;
+            padding: 1px 4px 2px 4px;
+            margin: 0 2px;
+            vertical-align: bottom;
+            border-radius: 2px 0 0 0;
+            background: rgba(37, 99, 235, 0.03);
+        }
+        .docx-content.docx-fancy-mode .volta-box.volta-1 {
+            border-right: 1.5px solid #2563eb; /* Closed tick at repeat bar :|| */
+            border-radius: 2px 2px 0 0;
+        }
+        .docx-content.docx-fancy-mode .volta-box.volta-2 {
+            border-right: none; /* Open tick as per musical convention */
+        }
+        .docx-content.docx-fancy-mode .volta-num {
+            font-size: 0.72em;
+            font-weight: 700;
+            color: #2563eb;
+            line-height: 1;
+            margin-bottom: 3px;
+            user-select: none;
+        }
+        .docx-content.docx-fancy-mode .volta-content {
+            display: inline;
+            white-space: pre;
+        }
+
+        /* In plain text mode, hide the CSS bracket styling so plain inline ASCII text renders naturally */
+        .docx-content:not(.docx-fancy-mode) .volta-box {
+            border: none !important;
+            padding: 0 !important;
+            margin: 0 !important;
+            background: none !important;
+            display: inline !important;
+        }
+        .docx-content:not(.docx-fancy-mode) .volta-num {
+            display: none !important;
+        }
+        .docx-content:not(.docx-fancy-mode) .volta-content {
+            display: inline !important;
+        }
+
         .docx-chord {
             color: #0284c7;
             font-weight: 600;

@@ -286,5 +286,19 @@ v3.35 - "Matter of Time" Lyrics Segmentation & Bridge Alignment (Nov 02, 2026)
   * Re-labeled the final repetition ("it’s just a matter of time... to blue to gray") from "Bridge"
     to "Tag Out" matching the lead sheet.
 - Incremented cache buster to v=1.35.
+
+v3.36 - Authentic Sheet-Music Volta Brackets for 1st & 2nd Repeat Endings (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Implemented semantic measure-anchored volta repeat brackets across all charts with repeat endings:
+  * Automatically detects Word-authored `1.______ 2.______` ending indicators.
+  * Strips the ASCII underline annotations from the header lines while preserving section names
+    (e.g. `VERSE 1:`, `VERSE 2:`, `VERSE 3:`) and eliminating empty underline lines.
+  * Dynamically calculates symmetric measure boundaries for Ending 1 and Ending 2 around `:||`.
+  * Renders crisp sheet-music volta brackets:
+    - Ending 1 (`┌── 1. ──┐`): top line with downward left tick, bold `1.`, and closed downward tick at `:||`.
+    - Ending 2 (`┌── 2. ── `): top line with downward left tick, bold `2.`, and open right convention.
+  * In Plain mode (`[¶]` OFF), cleanly flattens into inline measure brackets (e.g. `[1. G | D :||] [2. G | D B7/D# |]`).
+  * Full transposition integration: transposing shifts chords within volta brackets without distortion.
+- Incremented cache buster to v=1.36.
 ================================================================================
 

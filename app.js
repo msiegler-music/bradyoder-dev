@@ -353,7 +353,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.35";
+const APP_BUILD_VERSION = "v1.36";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1338,6 +1338,95 @@ function revertToAsciiAccidentals(html) {
     if (!html) return html;
     return html.replace(/♯/g, '#').replace(/♭/g, 'b');
 }
+
+// Convert Word-authored 1st and 2nd repeat indicators into authentic sheet-music volta brackets:
+// In Word docx charts (e.g. Matter of Time, Lite Brite, Local Band):
+// Brad wrote "1._________ 2.______" on the line above repeat measures.
+// In Fancy mode ([¶] ON):
+// - Renders clean CSS volta brackets over the respective measures:
+//   Ending 1 has a closed right tick at ':||', Ending 2 has an open right tick.
+// In Plain mode ([¶] OFF):
+// - Flattens cleanly to inline measure indicators: [1. G | D :||] [2. G | D B7/D# |]
+function formatVoltaEndings(html, isFancy) {
+    if (!html) return html;
+    const ENDING_HDR_REGEX = /(?:\b|\s)(1\.[_\s]+(?:2\.|➔|->|\uf0e0)[_\s]*)/i;
+
+    const paras = html.match(/<p[^>]*>[\s\S]*?<\/p>/gi);
+    if (!paras || paras.length === 0) return html;
+
+    const outParas = [];
+    let i = 0;
+    while (i < paras.length) {
+        const pCurr = paras[i];
+        const txtCurr = pCurr.replace(/<[^>]+>/g, '');
+        const mHdr = txtCurr.match(ENDING_HDR_REGEX);
+
+        if (mHdr && i + 1 < paras.length) {
+            const pNext = paras[i + 1];
+            const txtNext = pNext.replace(/<[^>]+>/g, '');
+
+            if (txtNext.includes(':||')) {
+                // 1. Clean the header line by stripping the repeat underlines
+                const cleanedHdrTxt = txtCurr.replace(/\s*1\.[_\s]+(?:2\.|➔|->|\uf0e0)[_\s]*/gi, '').trim();
+                if (cleanedHdrTxt) {
+                    outParas.push(`<p>${cleanedHdrTxt}</p>`);
+                }
+
+                // 2. Wrap ending measures in pNext with volta brackets
+                const innerNext = pNext.replace(/^<p[^>]*>/i, '').replace(/<\/p>$/i, '');
+                const repParts = innerNext.split(':||');
+                const beforeRep = repParts[0];
+                const afterRep = repParts.slice(1).join(':||');
+
+                const mEnd = afterRep.match(/(\|\||:\|\|)\s*$/);
+                const ending2Body = mEnd ? afterRep.slice(0, mEnd.index) : afterRep;
+                const sectionEnd = mEnd ? mEnd[0] : '';
+
+                // Count measures in Ending 2
+                const barsE2 = ending2Body.split('|').filter(b => b.replace(/<[^>]+>/g, '').trim());
+                const numBars = Math.max(1, barsE2.length);
+
+                // Find symmetric measure count in Ending 1 immediately preceding :||
+                const partsBefore = beforeRep.split('|');
+                let barsFound = 0;
+                let splitIdx = 0;
+                for (let idx = partsBefore.length - 1; idx >= 0; idx--) {
+                    if (partsBefore[idx].replace(/<[^>]+>/g, '').trim()) {
+                        barsFound++;
+                        if (barsFound === numBars) {
+                            splitIdx = idx;
+                            break;
+                        }
+                    }
+                }
+
+                const mainBody = partsBefore.slice(0, splitIdx).join('|');
+                const ending1Content = partsBefore.slice(splitIdx).join('|');
+                const ending2Content = ending2Body;
+
+                let chordP;
+                if (isFancy) {
+                    const v1 = `<span class="volta-box volta-1"><span class="volta-num">1.</span><span class="volta-content">${ending1Content}:||</span></span>`;
+                    const v2 = `<span class="volta-box volta-2"><span class="volta-num">2.</span><span class="volta-content">${ending2Content}${sectionEnd}</span></span>`;
+                    chordP = `<p>${mainBody}|${v1} ${v2}</p>`;
+                } else {
+                    const v1Txt = ending1Content.trim();
+                    const v2Txt = ending2Content.trim();
+                    chordP = `<p>${mainBody}| [1. ${v1Txt} :||] [2. ${v2Txt} ${sectionEnd}]</p>`;
+                }
+
+                outParas.push(chordP);
+                i += 2;
+                continue;
+            }
+        }
+
+        outParas.push(pCurr);
+        i++;
+    }
+
+    return outParas.join('');
+}
 let currentTransposeSemitones = 0;
 let rawCurrentDocxHtml = null;
 let currentAccidentalMode = 'auto'; // 'auto', 'sharp', 'flat'
@@ -1619,6 +1708,7 @@ function renderDocxChartHtml() {
         }
     }
 
+    html = formatVoltaEndings(html, isFancyFormattingMode);
     const bannerHtml = getTuningBannerHtml(currentTransposeSemitones);
     docxDiv.innerHTML = bannerHtml + html;
 }
@@ -1758,6 +1848,7 @@ async function loadChartFile(filename) {
             if (rawCurrentDocxHtml) {
                 initialHtml = isFancyFormattingMode ? formatChordsFancy(docxHtml) : revertToAsciiAccidentals(docxHtml);
             }
+            initialHtml = formatVoltaEndings(initialHtml, isFancyFormattingMode);
             const bannerHtml = getTuningBannerHtml(0);
             container.innerHTML = `<div class="docx-content ${fancyClass}">${bannerHtml}${initialHtml}</div>`;
             updateTransposeUI();
