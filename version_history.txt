@@ -346,5 +346,12 @@ v3.40 - Mobile Measure Whitespace Compression & Font Sizing Controls (Nov 02, 20
   * Added compact [A−] [A+] font size stepper controls in the chart pane toolbar with
     localStorage persistence (`--chart-font-scale`).
 - Incremented cache buster to v=1.40.
+
+v3.41 - Persistent Mobile View Mode (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Retained user-selected view mode ("Both", "Chords", or "Lyrics") when switching songs on mobile.
+- Persisted active mobile pane mode in `localStorage` so preferred layout sticks across sessions
+  without resetting to "Both" on every song selection.
+- Incremented cache buster to v=1.41.
 ================================================================================
 

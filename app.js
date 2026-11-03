@@ -92,6 +92,13 @@ function setupSidebarToggle() {
 }
 
 let currentMobilePaneMode = "both";
+try {
+    const savedMobileMode = localStorage.getItem("bradyoder_mobile_pane_mode");
+    if (savedMobileMode && ["both", "chart", "lyrics"].includes(savedMobileMode)) {
+        currentMobilePaneMode = savedMobileMode;
+    }
+} catch (e) {}
+
 function setMobilePaneMode(mode) {
     const modes = ["both", "chart", "lyrics"];
     const modeLabels = {
@@ -101,6 +108,9 @@ function setMobilePaneMode(mode) {
     };
     if (!modes.includes(mode)) mode = "both";
     currentMobilePaneMode = mode;
+    try {
+        localStorage.setItem("bradyoder_mobile_pane_mode", mode);
+    } catch (e) {}
 
     document.body.classList.remove("mobile-mode-chart", "mobile-mode-lyrics");
     if (mode === "chart") {
@@ -132,8 +142,8 @@ function setupMobileViewToggle() {
         setMobilePaneMode(modes[nextIdx]);
     };
 
-    // Initialize to "both"
-    setMobilePaneMode("both");
+    // Initialize to persisted mode (defaults to "both")
+    setMobilePaneMode(currentMobilePaneMode);
 }
 
 // Setup Settings popover and radio listeners
@@ -492,7 +502,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.40";
+const APP_BUILD_VERSION = "v1.41";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -979,8 +989,8 @@ function selectSong(song, options = {}) {
     const requestedChartIndex = typeof options.chartIndex === "number" ? options.chartIndex : 0;
     currentChartIndex = requestedChartIndex;
 
-    // Reset mobile view mode back to Both on every song selection
-    setMobilePaneMode("both");
+    // Retain user's chosen mobile pane mode across songs (persisted in currentMobilePaneMode)
+    setMobilePaneMode(currentMobilePaneMode);
 
     const title = toTitleCase(song.title || song.song_title || song.canonical_title || "Untitled");
     const dateStr = (song.composition_date || "").trim();
