@@ -492,7 +492,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.39";
+const APP_BUILD_VERSION = "v1.40";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1487,6 +1487,26 @@ function revertToAsciiAccidentals(html) {
 //   Ending 1 has a closed right tick at ':||', Ending 2 has an open right tick.
 // In Plain mode ([¶] OFF):
 // - Leaves the original docx volta bars and ASCII layout 100% as-is so users see Brad's exact raw notation.
+function compressMeasureWhitespaceFancy(html, isFancy) {
+    if (!html || !isFancy) return html;
+    const paras = html.match(/<p[^>]*>[\s\S]*?<\/p>/gi);
+    if (!paras || paras.length === 0) return html;
+
+    return paras.map(p => {
+        const rawText = p.replace(/<[^>]+>/g, '');
+        // Only compress lines with measure bars '|' that are NOT volta header lines ('1.___')
+        if (rawText.includes('|') && !/(?:\b|\s)1\.[_\s]+/.test(rawText)) {
+            // Compress runs of 2+ spaces down to 1 space outside HTML tags
+            const parts = p.split(/(<[^>]+>)/g);
+            for (let i = 0; i < parts.length; i += 2) {
+                parts[i] = parts[i].replace(/ {2,}/g, ' ');
+            }
+            return parts.join('');
+        }
+        return p;
+    }).join('');
+}
+
 function formatVoltaEndings(html, isFancy) {
     if (!html || !isFancy) return html;
     const ENDING_HDR_REGEX = /(?:\b|\s)(1\.[_\s]+(?:2\.|➔|->|\uf0e0)[_\s]*)/i;
@@ -1578,6 +1598,23 @@ let currentTransposeSemitones = 0;
 let rawCurrentDocxHtml = null;
 let currentAccidentalMode = 'auto'; // 'auto', 'sharp', 'flat'
 let isFancyFormattingMode = true; // Toggle for superscript/subscript visual styling (¶)
+
+// Chart Font Size Zoom controls (persisted in localStorage)
+let currentChartFontScale = 1.0;
+try {
+    const savedScale = parseFloat(localStorage.getItem('bradyoder_chart_font_scale'));
+    if (!isNaN(savedScale) && savedScale >= 0.6 && savedScale <= 1.6) {
+        currentChartFontScale = savedScale;
+    }
+} catch (e) {}
+
+function applyChartFontScale(scale) {
+    currentChartFontScale = Math.min(1.6, Math.max(0.6, Math.round(scale * 100) / 100));
+    document.documentElement.style.setProperty('--chart-font-scale', currentChartFontScale.toString());
+    try {
+        localStorage.setItem('bradyoder_chart_font_scale', currentChartFontScale.toString());
+    } catch (e) {}
+}
 
 // Pitch transposition data structures
 const PITCH_SEMITONE_MAP = {
@@ -1703,6 +1740,7 @@ function transposeChartHtml(html, semitones) {
 
 function updateTransposeUI() {
     const controls = document.getElementById("transpose-controls");
+    const fontControls = document.getElementById("chart-font-controls");
     const label = document.getElementById("transpose-semitones");
     const accidentalBtn = document.getElementById("transpose-accidental-btn");
     const fancyBtn = document.getElementById("transpose-fancy-btn");
@@ -1710,10 +1748,16 @@ function updateTransposeUI() {
 
     if (!rawCurrentDocxHtml) {
         controls.style.display = "none";
+        if (fontControls) {
+            // Check if active chart is a docx (e.g. Numbers chart or Letters chart)
+            const hasDocx = document.querySelector("#chart-container .docx-content");
+            fontControls.style.display = hasDocx ? "inline-flex" : "none";
+        }
         return;
     }
 
     controls.style.display = "inline-flex";
+    if (fontControls) fontControls.style.display = "inline-flex";
     if (currentTransposeSemitones === 0) {
         label.innerText = "Orig";
         label.classList.remove("active");
@@ -1856,6 +1900,7 @@ function renderDocxChartHtml() {
     }
 
     html = formatVoltaEndings(html, isFancyFormattingMode);
+    html = compressMeasureWhitespaceFancy(html, isFancyFormattingMode);
     const bannerHtml = getTuningBannerHtml(currentTransposeSemitones);
     docxDiv.innerHTML = bannerHtml + html;
 }
@@ -1943,6 +1988,23 @@ function setupTransposeControls() {
             toggleFancyFormattingMode();
         };
     }
+
+    const fontDecBtn = document.getElementById("chart-font-decrease-btn");
+    const fontIncBtn = document.getElementById("chart-font-increase-btn");
+    if (fontDecBtn) {
+        fontDecBtn.onclick = (e) => {
+            e.stopPropagation();
+            applyChartFontScale(currentChartFontScale - 0.08);
+        };
+    }
+    if (fontIncBtn) {
+        fontIncBtn.onclick = (e) => {
+            e.stopPropagation();
+            applyChartFontScale(currentChartFontScale + 0.08);
+        };
+    }
+    // Initialize root CSS variable from persisted scale
+    applyChartFontScale(currentChartFontScale);
 }
 
 // 4. Client-side chart rendering (PDF.js Canvas & Mammoth.js DOM injection)
@@ -1996,6 +2058,7 @@ async function loadChartFile(filename) {
                 initialHtml = isFancyFormattingMode ? formatChordsFancy(docxHtml) : revertToAsciiAccidentals(docxHtml);
             }
             initialHtml = formatVoltaEndings(initialHtml, isFancyFormattingMode);
+            initialHtml = compressMeasureWhitespaceFancy(initialHtml, isFancyFormattingMode);
             const bannerHtml = getTuningBannerHtml(0);
             container.innerHTML = `<div class="docx-content ${fancyClass}">${bannerHtml}${initialHtml}</div>`;
             updateTransposeUI();

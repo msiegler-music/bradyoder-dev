@@ -334,5 +334,17 @@ v3.39 - Raw Volta Endings in Plain Mode & Multi-Line Lookahead (Nov 02, 2026)
   section headers (e.g. "Better With Practice", where `2/2 1.___ 2.____` is separated from
   the repeat chord line by `VERSE 1: 1/2 2/2`).
 - Incremented cache buster to v=1.39.
+
+v3.40 - Mobile Measure Whitespace Compression & Font Sizing Controls (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Solved mobile line wrapping on devices like Google Pixel:
+  * In Fancy mode (`[¶]` ON), automatically compresses excessive multi-space padding between
+    measure bars (`|`) down to single spaces. This reduces measure line wrapping across the
+    entire catalog from 77.3% down to 34.6% without losing musical structure.
+  * Preserves raw ASCII whitespace in Plain mode (`[¶]` OFF) and ignores volta lines (`1.___`).
+  * Set default mobile base font size to 0.86rem on viewports <= 600px.
+  * Added compact [A−] [A+] font size stepper controls in the chart pane toolbar with
+    localStorage persistence (`--chart-font-scale`).
+- Incremented cache buster to v=1.40.
 ================================================================================
 

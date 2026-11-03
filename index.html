@@ -577,6 +577,40 @@
             border-color: #7dd3fc;
         }
 
+        /* Chart font-size stepper controls [A-] [A+] */
+        .chart-font-stepper {
+            display: inline-flex;
+            align-items: center;
+            border: 1px solid #e2e8f0;
+            border-radius: 4px;
+            background: #f8fafc;
+            padding: 1px;
+            margin-left: 2px;
+            user-select: none;
+        }
+        .chart-font-btn {
+            background: transparent;
+            border: none;
+            padding: 2px 5px;
+            font-size: 0.72rem;
+            font-weight: 700;
+            color: #52525b;
+            cursor: pointer;
+            border-radius: 3px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.1s ease;
+        }
+        .chart-font-btn:hover {
+            color: #0284c7;
+            background: #e0f2fe;
+        }
+        .chart-font-btn:active {
+            transform: scale(0.95);
+        }
+
         /* Split Panes Container */
         #panes-container {
             flex: 1;
@@ -668,9 +702,13 @@
             margin-left: 4px;
         }
 
+        :root {
+            --chart-font-scale: 1;
+        }
+
         /* Styling for Mammoth DOCX semantic HTML output */
         .docx-content {
-            font-size: 1rem;
+            font-size: calc(1rem * var(--chart-font-scale));
             line-height: 1.5;
             color: #27272a;
         }
@@ -1159,6 +1197,9 @@
 
         /* Small Mobile Screen Optimizations (phones < 600px) */
         @media (max-width: 600px) {
+            .docx-content {
+                font-size: calc(0.86rem * var(--chart-font-scale));
+            }
             #sidebar-toggle-btn {
                 padding: 6px 9px;
             }
@@ -1239,7 +1280,7 @@
                     <div class="settings-version-info">
                         <span>App Version:</span>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <span id="app-version-badge" class="settings-version-tag">v1.39</span>
+                            <span id="app-version-badge" class="settings-version-tag">v1.40</span>
                             <button type="button" id="force-reload-btn" class="settings-reload-btn" title="Force reload (clear cache)">🔄</button>
                         </div>
                     </div>
@@ -1265,6 +1306,10 @@
                             </div>
                             <button type="button" class="transpose-accidental-toggle" id="transpose-accidental-btn" title="Toggle enharmonic spellings (Sharps # / Flats ♭)">♯</button>
                             <button type="button" class="transpose-fancy-toggle" id="transpose-fancy-btn" title="Toggle fancy formatting (subscript & superscript extensions)">¶</button>
+                        </div>
+                        <div class="chart-font-stepper" id="chart-font-controls" style="display: none;" title="Adjust chart text size">
+                            <button type="button" class="chart-font-btn" id="chart-font-decrease-btn" title="Decrease font size (A-)">A−</button>
+                            <button type="button" class="chart-font-btn" id="chart-font-increase-btn" title="Increase font size (A+)">A+</button>
                         </div>
                         <div id="version-selector" style="display: none;">
                             <!-- Dynamically populated alternate version tabs -->
@@ -1309,6 +1354,6 @@
     </div>
 
     <!-- Application Script -->
-    <script src="app.js?v=1.39"></script>
+    <script src="app.js?v=1.40"></script>
 </body>
 </html>
