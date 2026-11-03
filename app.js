@@ -353,7 +353,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.33";
+const APP_BUILD_VERSION = "v1.34";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1230,14 +1230,39 @@ function cleanMammothDocxHtml(html) {
     return h;
 }
 
+// Format chord extensions (e.g. m, maj7, 7, (add9), sus):
+// In fancy mode:
+// - 'add' chords are formatted with parentheses on the baseline: C(add9), G(add9), Aᵐ(add9), F(add9)/ₐ
+// - qualities like 'm', 'maj7', '7', 'sus' sit in superscript: Bᵐ, Cᵐᵃʲ⁷, Gˢᵘˢ
+// In plain mode:
+// - flattens cleanly: C(add9), Am(add9), Bm, Cmaj7
+function formatChordExtensionHtml(finalExt, isFancy) {
+    if (!finalExt) return '';
+    const addMatch = finalExt.match(/^(m|maj|dim|aug|sus|[0-9]+)?\(?add([0-9a-zA-Z♯♭+-]*)\)?(.*)$/i);
+    if (addMatch) {
+        const prefix = addMatch[1] || '';
+        const addNum = addMatch[2] || '';
+        const suffix = addMatch[3] || '';
+        const addToken = `(add${addNum})`;
+        if (isFancy) {
+            const prefixHtml = prefix ? `<sup>${prefix}</sup>` : '';
+            const suffixHtml = suffix ? `<sup>${suffix}</sup>` : '';
+            return `${prefixHtml}${addToken}${suffixHtml}`;
+        } else {
+            return `${prefix}${addToken}${suffix}`;
+        }
+    }
+    return isFancy ? `<sup>${finalExt}</sup>` : finalExt;
+}
+
 // Format chords for display:
 // In Fancy mode ([¶] ON):
 // 1. Root stays full-size on the baseline (e.g. B, G, A, F♯).
 // 2. Extensions / minor qualities sit in superscript (e.g. B<sup>m</sup>, B<sup>m7</sup>, F♯<sup>msus</sup>, G<sup>maj7</sup>).
-//    Chords with 'add' (like Cadd9, Fadd9) keep 'add...' on the baseline (Cadd9, A<sup>m</sup>add9).
+//    Chords with 'add' (like Cadd9, Fadd9) format with parentheses on the baseline: C(add9), F(add9)/<sub>A</sub>, A<sup>m</sup>(add9).
 // 3. Slash bass notes sit in subscript (e.g. B<sup>m</sup>/<sub>A</sub>, G/<sub>D</sub>, A/<sub>C♯</sub>, /<sub>F♯</sub>).
 // In Plain mode ([¶] OFF):
-// Everything flattens to clean single-line ASCII text (e.g. Bm/A, G/D, A/C#, F#msus, Cadd9).
+// Everything flattens to clean single-line ASCII text (e.g. Bm/A, G/D, A/C#, F#msus, C(add9)).
 function formatChordTokenHtml(root, qualityAndExt, bass, bassExt, isFancy) {
     if (!root) return '';
     const capRoot = root.charAt(0).toUpperCase() + root.slice(1);
@@ -1247,25 +1272,7 @@ function formatChordTokenHtml(root, qualityAndExt, bass, bassExt, isFancy) {
     const cleanExt = (qualityAndExt || '').replace(/<\/?(?:sup|sub)>/gi, '');
     let finalExt = isFancy ? cleanExt.replace(/#/g, '♯').replace(/b/g, '♭') : cleanExt.replace(/♯/g, '#').replace(/♭/g, 'b');
 
-    let extHtml = '';
-    if (finalExt) {
-        if (!isFancy) {
-            extHtml = finalExt;
-        } else {
-            // Keep 'add' extension tokens (e.g. Cadd9, Gadd9, Amadd9, Fadd9) anchored on the baseline
-            const addMatch = finalExt.match(/^(m|maj|dim|aug|sus|[0-9]+)?(add[0-9a-zA-Z♯♭+-]*)(.*)$/i);
-            if (addMatch) {
-                const prefix = addMatch[1] || '';
-                const addPart = addMatch[2];
-                const suffix = addMatch[3] || '';
-                const prefixHtml = prefix ? `<sup>${prefix}</sup>` : '';
-                const suffixHtml = suffix ? `<sup>${suffix}</sup>` : '';
-                extHtml = `${prefixHtml}${addPart}${suffixHtml}`;
-            } else {
-                extHtml = `<sup>${finalExt}</sup>`;
-            }
-        }
-    }
+    const extHtml = formatChordExtensionHtml(finalExt, isFancy);
 
     let bassHtml = '';
     if (bass) {
@@ -1385,8 +1392,9 @@ function transposePitchString(pitch, semitones, preferFlat = false) {
 // Regex matching individual chords and slash bass tokens across all Brad Yoder charts
 // Handles standard ASCII (#, b) and Unicode musical accidentals (♯, ♭):
 // Handles: G, f#m, f#msus, F#7/A#, bm, /C#, /A, B579, Gadd9, C/E, D♭, E♭, dm11, Em9-5, Gmaj7+11, Am#6, Dsus79, Emb5, G/Bo, Bbadd9maj7,
-// and supports inner HTML tags like dm<sup>9</sup> or F<sup>maj7</sup> in fancy mode.
-const CHORD_TOKEN_REGEX = /(?<![A-Za-z0-9_#♯*])(?:(\/[A-Ga-g][#b♯♭]?)|([A-Ga-g][#b♯♭]?)((?:<[^>]+>|maj|min|dim|aug|sus|add|m|[0-9#b♯♭+-])*)(?:\/([A-Ga-g][#b♯♭]?)([0-9a-z#b♯♭+-]*)?)?)(?![A-Za-z0-9_#♯])/g;
+// and supports inner HTML tags like dm<sup>9</sup> or F<sup>maj7</sup> in fancy mode,
+// as well as parenthesized add extensions like C(add9) or G(+11).
+const CHORD_TOKEN_REGEX = /(?<![A-Za-z0-9_#♯*])(?:(\/[A-Ga-g][#b♯♭]?)|([A-Ga-g][#b♯♭]?)((?:<[^>]+>|\([+0-9a-zA-Z#b♯♭-]+\)|maj|min|dim|aug|sus|add|m|[0-9#b♯♭+-])*)(?:\/([A-Ga-g][#b♯♭]?)([0-9a-z#b♯♭+-]*)?)?)(?![A-Za-z0-9_#♯])/g;
 
 function transposeChordString(text, semitones, preferFlat = false) {
     if (semitones === 0) return text;
@@ -1400,13 +1408,10 @@ function transposeChordString(text, semitones, preferFlat = false) {
         if (!root) return match;
         const newRoot = transposePitchString(root, semitones, preferFlat);
 
-        // Quality and extensions (m, maj7, add9, sus, etc.)
+        // Quality and extensions (m, maj7, (add9), sus, etc.)
         const cleanExt = (qualityAndExt || '').replace(/<\/?(?:sup|sub)>/gi, '');
         let finalExt = isFancyFormattingMode ? cleanExt.replace(/#/g, '♯').replace(/b/g, '♭') : cleanExt.replace(/♯/g, '#').replace(/♭/g, 'b');
-        let extHtml = '';
-        if (finalExt) {
-            extHtml = isFancyFormattingMode ? `<sup>${finalExt}</sup>` : finalExt;
-        }
+        const extHtml = formatChordExtensionHtml(finalExt, isFancyFormattingMode);
 
         // Bass note: subscript in fancy mode
         let bassHtml = '';

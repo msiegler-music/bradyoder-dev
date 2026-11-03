@@ -265,5 +265,16 @@ v3.33 - Natural Baseline "add" Chords & Automated Release Spot Checks (Nov 02, 2
   that parses 25 random charts and verifies zero root-in-superscript regressions,
   zero "add"-in-superscript regressions, and tag balance across all charts.
 - Incremented cache buster to v=1.33.
+
+v3.34 - C(add9) Format Normalization and Transposition Sync (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Standardized all `add` chord extensions across the catalog into the explicit `C(add9)` format:
+  * Renders `C(add9)`, `G(add9)`, `D(add9)`, `Aᵐ(add9)`, and `F(add9)/ₐ`.
+  * The musical root (e.g. `C`, `A`, `F`) stays on the baseline and cleanly transposes
+    (e.g. `C(add9)` transposing +2 semitones becomes `D(add9)`, with `(add9)` preserved on the baseline).
+  * In slash chords like `F(add9)/A`, transposing +2 semitones cleanly updates both the root
+    and subscript bass note: `G(add9)/<sub>B</sub>`.
+  * Updated `CHORD_TOKEN_REGEX` to match parenthesized extension expressions like `(add9)` and `(+11)`.
+- Incremented cache buster to v=1.34.
 ================================================================================
 

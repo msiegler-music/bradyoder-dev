@@ -3,7 +3,7 @@
 Automated 25-Sample Spot Check for Chord Chart Rendering.
 Verifies typography rules across 25 charts (including priority regressions):
 1. Root notes remain full-size on the baseline (never in <sup>).
-2. 'add' modifiers remain on the baseline (e.g. Cadd9, not Cᵃᵈᵈ⁹).
+2. 'add' modifiers format as (add...) on the baseline (e.g. C(add9), not Cᵃᵈᵈ⁹).
 3. Minor qualities / extensions properly sit in superscript (e.g. Bᵐ/ₐ).
 4. Slash bass notes sit in subscript (e.g. G/ᴅ).
 """
@@ -12,7 +12,7 @@ import glob, os, random, re, sys, zipfile
 import xml.etree.ElementTree as ET
 
 CHORD_TOKEN_REGEX = re.compile(
-    r'(?<![A-Za-z0-9_#♯*])(?:(\/[A-Ga-g][#b♯♭]?)|([A-Ga-g][#b♯♭]?)((?:<[^>]+>|maj|min|dim|aug|sus|add|m|[0-9#b♯♭+-])*)(?:\/([A-Ga-g][#b♯♭]?)([0-9a-z#b♯♭+-]*)?)?)(?![A-Za-z0-9_#♯])'
+    r'(?<![A-Za-z0-9_#♯*])(?:(\/[A-Ga-g][#b♯♭]?)|([A-Ga-g][#b♯♭]?)((?:<[^>]+>|\([+0-9a-zA-Z#b♯♭-]+\)|maj|min|dim|aug|sus|add|m|[0-9#b♯♭+-])*)(?:\/([A-Ga-g][#b♯♭]?)([0-9a-z#b♯♭+-]*)?)?)(?![A-Za-z0-9_#♯])'
 )
 
 def cleanMammothDocxHtml_py(html):
@@ -60,6 +60,23 @@ def cleanMammothDocxHtml_py(html):
     h = re.sub(r'^\s*<p[^>]*>(?:.*?(?:brad\s+yoder|capo|[A-Ga-g][#b♯♭]?\s*\(.*?\)).*?)</p>\s*', '', h, flags=re.I)
     return h
 
+def formatChordExtensionHtml(finalExt, isFancy):
+    if not finalExt:
+        return ''
+    addMatch = re.match(r'^(m|maj|dim|aug|sus|[0-9]+)?\(?add([0-9a-zA-Z♯♭+-]*)\)?(.*)$', finalExt, re.I)
+    if addMatch:
+        prefix = addMatch.group(1) or ''
+        addNum = addMatch.group(2) or ''
+        suffix = addMatch.group(3) or ''
+        addToken = f'(add{addNum})'
+        if isFancy:
+            prefixHtml = f'<sup>{prefix}</sup>' if prefix else ''
+            suffixHtml = f'<sup>{suffix}</sup>' if suffix else ''
+            return f'{prefixHtml}{addToken}{suffixHtml}'
+        else:
+            return f'{prefix}{addToken}{suffix}'
+    return f'<sup>{finalExt}</sup>' if isFancy else finalExt
+
 def formatChordTokenHtml_py(root, qualityAndExt, bass, bassExt, isFancy):
     if not root:
         return ''
@@ -67,20 +84,7 @@ def formatChordTokenHtml_py(root, qualityAndExt, bass, bassExt, isFancy):
     finalRoot = capRoot.replace('#', '♯').replace('b', '♭') if isFancy else capRoot.replace('♯', '#').replace('♭', 'b')
     cleanExt = re.sub(r'</?(?:sup|sub)>', '', qualityAndExt or '')
     finalExt = cleanExt.replace('#', '♯').replace('b', '♭') if isFancy else cleanExt.replace('♯', '#').replace('♭', 'b')
-    
-    extHtml = ''
-    if finalExt:
-        if not isFancy:
-            extHtml = finalExt
-        else:
-            m = re.match(r'^(m|maj|dim|aug|sus|[0-9]+)?(add[0-9a-zA-Z♯♭+-]*)(.*)$', finalExt, re.I)
-            if m:
-                prefix, addPart, suffix = m.group(1) or '', m.group(2), m.group(3) or ''
-                prefixHtml = f'<sup>{prefix}</sup>' if prefix else ''
-                suffixHtml = f'<sup>{suffix}</sup>' if suffix else ''
-                extHtml = f'{prefixHtml}{addPart}{suffixHtml}'
-            else:
-                extHtml = f'<sup>{finalExt}</sup>'
+    extHtml = formatChordExtensionHtml(finalExt, isFancy)
     
     bassHtml = ''
     if bass:
