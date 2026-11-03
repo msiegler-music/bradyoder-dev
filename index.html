@@ -3,6 +3,10 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <!-- Prevent aggressive browser disk-caching of application shell -->
+    <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
+    <meta http-equiv="Pragma" content="no-cache">
+    <meta http-equiv="Expires" content="0">
     <title>Song Chart & Lyrics Viewer v2</title>
     <!-- Mammoth.js for client-side .docx to semantic HTML conversion -->
     <script src="https://cdnjs.cloudflare.com/ajax/libs/mammoth/1.6.0/mammoth.browser.min.js"></script>
@@ -1074,7 +1078,7 @@
                     <div class="settings-version-info">
                         <span>App Version:</span>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <span id="app-version-badge" class="settings-version-tag">v1.32</span>
+                            <span id="app-version-badge" class="settings-version-tag">v1.37</span>
                             <button type="button" id="force-reload-btn" class="settings-reload-btn" title="Force reload (clear cache)">🔄</button>
                         </div>
                     </div>
@@ -1124,6 +1128,6 @@
     </div>
 
     <!-- Application Script -->
-    <script src="app.js?v=1.32"></script>
+    <script src="app.js?v=1.37"></script>
 </body>
 </html>

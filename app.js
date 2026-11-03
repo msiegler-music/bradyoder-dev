@@ -170,11 +170,29 @@ function setupSettingsPopover() {
 
     const reloadBtn = document.getElementById("force-reload-btn");
     if (reloadBtn) {
-        reloadBtn.onclick = (e) => {
+        reloadBtn.onclick = async (e) => {
             e.stopPropagation();
-            // Force cache-busting reload by appending a fresh timestamp query
+            reloadBtn.innerText = "⏳";
+            reloadBtn.style.animation = "spin 0.6s linear infinite";
+
+            // 1. Purge any CacheStorage entries (ServiceWorker / Browser caches)
+            if (typeof window !== "undefined" && "caches" in window) {
+                try {
+                    const keys = await window.caches.keys();
+                    await Promise.all(keys.map(k => window.caches.delete(k)));
+                } catch (err) {
+                    console.warn("Could not purge caches:", err);
+                }
+            }
+
+            // 2. Clear sessionStorage
+            try {
+                sessionStorage.clear();
+            } catch (err) {}
+
+            // 3. Force cache-busting reload by appending fresh timestamp and replacing state
             const url = new URL(window.location.href);
-            url.searchParams.set("_reload", Date.now());
+            url.searchParams.set("_v", Date.now());
             window.location.replace(url.toString());
         };
     }
@@ -353,7 +371,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.36";
+const APP_BUILD_VERSION = "v1.37";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -362,12 +380,13 @@ if (window.pdfjsLib) {
 // 1. Load and parse normalized datasets on startup, joining on song URL & album_id
 async function initApp() {
     try {
+        const fetchOpts = { cache: 'no-cache' };
         const [songsRes, albumsRes, chartsRes, lyricsRes, audioRes] = await Promise.all([
-            fetch(`songs.csv?v=${APP_BUILD_VERSION}`),
-            fetch(`albums.csv?v=${APP_BUILD_VERSION}`),
-            fetch(`charts.csv?v=${APP_BUILD_VERSION}`).catch(() => null),
-            fetch(`lyrics.csv?v=${APP_BUILD_VERSION}`).catch(() => null),
-            fetch(`audio.csv?v=${APP_BUILD_VERSION}`).catch(() => null)
+            fetch(`songs.csv?v=${APP_BUILD_VERSION}`, fetchOpts),
+            fetch(`albums.csv?v=${APP_BUILD_VERSION}`, fetchOpts),
+            fetch(`charts.csv?v=${APP_BUILD_VERSION}`, fetchOpts).catch(() => null),
+            fetch(`lyrics.csv?v=${APP_BUILD_VERSION}`, fetchOpts).catch(() => null),
+            fetch(`audio.csv?v=${APP_BUILD_VERSION}`, fetchOpts).catch(() => null)
         ]);
 
         const songsCsvText = await songsRes.text();
@@ -1145,7 +1164,7 @@ async function fetchChartBuffer(filename) {
 
     for (const path of candidatePaths) {
         try {
-            const res = await fetch(path);
+            const res = await fetch(`${path}?v=${APP_BUILD_VERSION}`, { cache: 'no-cache' });
             if (res.ok) {
                 const buffer = await res.arrayBuffer();
                 return { ok: true, buffer, path };

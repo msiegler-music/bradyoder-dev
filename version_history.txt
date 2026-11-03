@@ -300,5 +300,20 @@ v3.36 - Authentic Sheet-Music Volta Brackets for 1st & 2nd Repeat Endings (Nov 0
   * In Plain mode (`[¶]` OFF), cleanly flattens into inline measure brackets (e.g. `[1. G | D :||] [2. G | D B7/D# |]`).
   * Full transposition integration: transposing shifts chords within volta brackets without distortion.
 - Incremented cache buster to v=1.36.
+
+v3.37 - Multi-Layer Cache Busting & Deep Storage Purging (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Hardened cache invalidation and reload reliability across all browser tiers:
+  * In `index.html`: added explicit `no-cache, no-store, must-revalidate` HTTP meta headers
+    to prevent aggressive browser disk-caching of the HTML application shell on GitHub Pages.
+  * Synchronized `<script src="app.js?v=1.37">` with `APP_BUILD_VERSION` and `index.html`.
+  * In `initApp()`: all CSV dataset requests now fetch with `{ cache: 'no-cache' }` and dynamic
+    version parameters to guarantee revalidation with GitHub Pages ETags.
+  * In `fetchChartBuffer()`: DOCX and PDF chart asset requests now include version parameters
+    and `{ cache: 'no-cache' }` so modified charts load immediately.
+  * In `force-reload-btn` (🔄): clicking the reload button now actively purges the browser
+    CacheStorage API (`window.caches.delete`), flushes `sessionStorage`, provides visual
+    loading feedback (`⏳`), and performs a cache-busting navigation replace.
+- Incremented cache buster to v=1.37.
 ================================================================================
 
