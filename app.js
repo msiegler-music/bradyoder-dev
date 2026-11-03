@@ -353,7 +353,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.31";
+const APP_BUILD_VERSION = "v1.32";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1176,19 +1176,30 @@ function cleanMammothDocxHtml(html) {
     h = h.replace(/([A-Ga-g])\s*<sup>\s*b([/a-zA-Z0-9_#+-]*)\s*<\/sup>/gi, '$1b$2');
     h = h.replace(/([A-Ga-g])\s*<sup>\s*#([/a-zA-Z0-9_#+-]*)\s*<\/sup>/g, '$1#$2');
     
-    // 3. Attach superscript slash chords:
-    // e.g. <sup>F/</sup>A -> F/A, <sup>Eb/</sup>Bb -> Eb/Bb
-    h = h.replace(/<sup>\s*([A-Ga-g][#b]?\/)\s*<\/sup>\s*([A-Ga-g][#b]?)/g, '$1$2');
-    
+    // 3. Unwrap chord roots mistakenly enclosed in <sup>:
+    // In MS Word, Brad frequently formatted whole chords or roots as superscript (e.g. <sup>C</sup>/G, <sup>Cmaj7</sup>/G, <sup>Am</sup>/D, <sup>Fadd9/</sup>A).
+    // We unwrap the musical root note onto the standard baseline so that roots stay full-size:
+    h = h.replace(/<sup>\s*([A-Ga-g][#b]?)([^<]*)<\/sup>/g, (m, root, rest) => {
+        if (rest) {
+            if (rest.endsWith('/')) {
+                const inner = rest.slice(0, -1);
+                return inner ? `${root}<sup>${inner}</sup>/` : `${root}/`;
+            }
+            return `${root}<sup>${rest}</sup>`;
+        }
+        return root;
+    });
+
     // 4. Attach standalone superscript slashes: e.g. <sup>/</sup>C -> /C
     h = h.replace(/<sup>\s*\/\s*<\/sup>\s*([A-Ga-g][#b]?)/g, '/$1');
+    h = h.replace(/<sup>\s*\/\s*<\/sup>/g, '/');
     
     // 5. Normalize accidental spaces inside chords: e.g. "B  b" -> "Bb", "F  #" -> "F#"
     h = h.replace(/\b([A-Ga-g])\s+([b#])\b/g, '$1$2');
     
     // 6. Smush unsmushed chord extensions separated by spaces:
-    // e.g. "C maj7" -> "Cmaj7", "Bb add9maj7" -> "Bbadd9maj7", "F add9" -> "Fadd9", "E add9" -> "Eadd9", "D sus" -> "Dsus"
-    const smushPattern = /\b([A-Ga-g][#b]?)\s+((?:maj|min|dim|aug|sus|add|m7|m9|m11)[a-zA-Z0-9#b+-]*)/g;
+    // e.g. "C maj7" -> "Cmaj7", "Bb add9maj7" -> "Bbadd9maj7", "Am add9" -> "Amadd9", "Bb 69" -> "Bb69", "G sus" -> "Gsus"
+    const smushPattern = /\b([A-Ga-g][#b]?m?)\s+((?:maj|min|dim|aug|sus|add|m7|m9|m11|[0-9])[a-zA-Z0-9#b+-]*)/gi;
     let prev = null;
     while (prev !== h) {
         prev = h;

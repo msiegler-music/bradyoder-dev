@@ -240,5 +240,15 @@ v3.31 - Inline Root with Superscript Quality and Subscript Bass (Nov 02, 2026)
   * In plain mode ([¶] OFF), chords flatten cleanly to standard single-line ASCII text.
 - Added public root copy of version_history.txt.
 - Incremented cache buster to v=1.31.
+
+v3.32 - Unwrapping Document-Authored Superscript Roots (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Fixed bug where Word documents that authored entire chords or roots in superscript
+  (such as "Back Then": <sup>C</sup>/G, <sup>Cmaj7</sup>/G, <sup>Am</sup>/D, <sup>Fadd9/</sup>A)
+  caused chords and adjacent measure lines to render tiny and elevated.
+- Automatically unwraps musical roots onto the standard baseline while maintaining
+  superscript extensions (C<sup>maj7</sup>/<sub>G</sub>, A<sup>m</sup>/<sub>D</sub>, F<sup>add9</sup>/<sub>A</sub>).
+- Expanded auto-smushing to cover minor chord extensions (e.g. "Am add9" -> "Amadd9").
+- Incremented cache buster to v=1.32.
 ================================================================================
 
