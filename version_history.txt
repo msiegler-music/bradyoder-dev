@@ -315,5 +315,15 @@ v3.37 - Multi-Layer Cache Busting & Deep Storage Purging (Nov 02, 2026)
     CacheStorage API (`window.caches.delete`), flushes `sessionStorage`, provides visual
     loading feedback (`⏳`), and performs a cache-busting navigation replace.
 - Incremented cache buster to v=1.37.
+
+v3.38 - Interactive In-App Revision History Modal (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Added an interactive "Revision History" modal dialog accessible by clicking the version badge:
+  * Clicking the version tag (`v1.38`) in the Settings popover opens a sleek modal dialog.
+  * Automatically fetches and parses `version_history.txt`, presenting changelog entries
+    in reverse-chronological order (latest releases first with a "CURRENT" badge).
+  * Styled with backdrop blur, smooth scale-in transitions, ESC key dismiss, and direct
+    link to open raw log.
+- Incremented cache buster to v=1.38.
 ================================================================================
 

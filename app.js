@@ -196,6 +196,127 @@ function setupSettingsPopover() {
             window.location.replace(url.toString());
         };
     }
+
+    // 4. Clicking the version badge opens the Revision History modal dialog
+    const versionBadge = document.getElementById("app-version-badge");
+    if (versionBadge) {
+        versionBadge.title = "Click to view full revision list & version history";
+        versionBadge.onclick = (e) => {
+            e.stopPropagation();
+            openRevisionHistoryModal();
+        };
+    }
+}
+
+// ----------------------------------------------------
+// REVISION HISTORY MODAL DIALOG
+// ----------------------------------------------------
+
+let cachedVersionHistoryText = null;
+
+async function openRevisionHistoryModal() {
+    const backdrop = document.getElementById("revision-modal-backdrop");
+    const bodyContainer = document.getElementById("revision-modal-body");
+    const closeBtn = document.getElementById("revision-modal-close");
+    const versionBadge = document.getElementById("modal-app-version");
+    if (!backdrop || !bodyContainer) return;
+
+    if (versionBadge) {
+        versionBadge.innerText = APP_BUILD_VERSION;
+    }
+
+    // Show backdrop immediately with loading state
+    backdrop.classList.add("open");
+    backdrop.setAttribute("aria-hidden", "false");
+
+    const closeModal = () => {
+        backdrop.classList.remove("open");
+        backdrop.setAttribute("aria-hidden", "true");
+        document.removeEventListener("keydown", onEsc);
+    };
+
+    const onEsc = (e) => {
+        if (e.key === "Escape") closeModal();
+    };
+
+    if (closeBtn) {
+        closeBtn.onclick = (e) => {
+            e.stopPropagation();
+            closeModal();
+        };
+    }
+
+    backdrop.onclick = (e) => {
+        if (e.target === backdrop) {
+            closeModal();
+        }
+    };
+
+    document.addEventListener("keydown", onEsc);
+
+    // Fetch and render version_history.txt
+    try {
+        if (!cachedVersionHistoryText) {
+            const res = await fetch(`version_history.txt?v=${APP_BUILD_VERSION}`, { cache: "no-cache" });
+            if (res.ok) {
+                cachedVersionHistoryText = await res.text();
+            } else {
+                throw new Error("Could not load version_history.txt");
+            }
+        }
+
+        renderRevisionHistoryHtml(cachedVersionHistoryText, bodyContainer);
+    } catch (err) {
+        bodyContainer.innerHTML = `<p style="color: #ef4444;">Failed to load revision history: ${escapeHtml(err.message)}</p>`;
+    }
+}
+
+function renderRevisionHistoryHtml(rawText, container) {
+    if (!rawText || !container) return;
+
+    // Parse blocks starting with 'vX.X'
+    const rawBlocks = rawText.split(/\n(?=v\d+\.\d+)/g);
+    const entries = [];
+
+    for (const b of rawBlocks) {
+        const trimmed = b.trim();
+        if (!trimmed.startsWith("v")) continue;
+        const lines = trimmed.split("\n");
+        const title = lines[0].trim();
+        const bodyLines = lines.slice(1).filter(l => !/^[-=]{5,}$/.test(l.trim()));
+        const body = bodyLines.join("\n").trim();
+        entries.push({ title, body });
+    }
+
+    // Display newest releases first (reverse chronological order)
+    const reversed = [...entries].reverse();
+
+    if (reversed.length === 0) {
+        container.innerHTML = `<pre class="revision-body">${escapeHtml(rawText)}</pre>`;
+        return;
+    }
+
+    const htmlParts = reversed.map((entry, idx) => {
+        const isLatest = idx === 0;
+        const latestBadge = isLatest ? `<span class="revision-latest-tag">Current</span>` : "";
+        
+        // Format bullet points into structured lists or clean lines
+        const escapedBody = escapeHtml(entry.body)
+            .replace(/^-\s+(.*)$/gm, "<li>$1</li>")
+            .replace(/^\s*\*\s+(.*)$/gm, "<li style='margin-left: 16px;'>$1</li>");
+
+        return `<div class="revision-entry">
+            <div class="revision-header">
+                <span>${escapeHtml(entry.title)}</span>
+                ${latestBadge}
+            </div>
+            <div class="revision-body">
+                ${escapedBody}
+            </div>
+        </div>`;
+    });
+
+    container.innerHTML = htmlParts.join("");
 }
 
 // Helper to extract clean slug from a song URL or identifier
@@ -371,7 +492,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.37";
+const APP_BUILD_VERSION = "v1.38";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
