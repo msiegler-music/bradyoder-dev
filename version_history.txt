@@ -250,5 +250,20 @@ v3.32 - Unwrapping Document-Authored Superscript Roots (Nov 02, 2026)
   superscript extensions (C<sup>maj7</sup>/<sub>G</sub>, A<sup>m</sup>/<sub>D</sub>, F<sup>add9</sup>/<sub>A</sub>).
 - Expanded auto-smushing to cover minor chord extensions (e.g. "Am add9" -> "Amadd9").
 - Incremented cache buster to v=1.32.
+
+v3.33 - Natural Baseline "add" Chords & Automated Release Spot Checks (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Fixed "Cadd9" and "add" chord rendering:
+  * In typographic music notation, "add" is a modifier that belongs on the baseline with the root.
+  * Prevented "add9", "add11", "add2", "add4", "addb9", etc. from turning into tiny elevated superscripts (e.g. Cᵃᵈᵈ⁹).
+  * Chords like Cadd9, Gadd9, Dadd9, and Fadd9/A now render cleanly with "add9" on the natural baseline (Cadd9, Fadd9/<sub>A</sub>).
+  * For minor chords with add (e.g. Amadd9), the minor quality is superscripted while the extension remains baseline (A<sup>m</sup>add9).
+  * In Mammoth cleanup, unwrapped authored `<sup>add...</sup>` tags onto the baseline.
+  * Fixed trailing slash extraction from <sup> tags (e.g. `bm<sup>7/</sup>A` -> `B<sup>m7</sup>/<sub>A</sub>`).
+  * Unwrapped authored `<sub>` bass notes from Word documents (e.g. `Fm/<sub>Eb</sub>` -> `F<sup>m</sup>/<sub>E♭</sub>`).
+- Created automated 25-sample release spot check test script (`scripts/spot_check_charts.py`)
+  that parses 25 random charts and verifies zero root-in-superscript regressions,
+  zero "add"-in-superscript regressions, and tag balance across all charts.
+- Incremented cache buster to v=1.33.
 ================================================================================
 

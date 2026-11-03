@@ -353,7 +353,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.32";
+const APP_BUILD_VERSION = "v1.33";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1166,8 +1166,15 @@ async function fetchChartBuffer(filename) {
 function cleanMammothDocxHtml(html) {
     if (!html) return html;
     
-    // 1. Merge adjacent sup tags: <sup>X</sup><sup>Y</sup> -> <sup>XY</sup>
-    let h = html.replace(/<\/sup>\s*<sup>/g, '');
+    // 0. Trim whitespace inside sup / sub tags and clean empty tags:
+    let h = html.replace(/<sup[^>]*>\s*/gi, '<sup>').replace(/\s*<\/sup>/gi, '</sup>');
+    h = h.replace(/<sub[^>]*>\s*/gi, '<sub>').replace(/\s*<\/sub>/gi, '</sub>');
+    h = h.replace(/<sup>\s*<\/sup>/gi, '');
+    h = h.replace(/<sub>\s*<\/sub>/gi, '');
+
+    // 1. Merge adjacent sup/sub tags: <sup>X</sup><sup>Y</sup> -> <sup>XY</sup>
+    h = h.replace(/<\/sup>\s*<sup>/g, '');
+    h = h.replace(/<\/sub>\s*<sub>/g, '');
     
     // 2. Attach superscript accidentals (b, #) to the preceding musical root letter:
     // e.g. B<sup>b</sup> -> Bb, B<sup>b/</sup> -> Bb/, F<sup>#</sup> -> F#
@@ -1176,7 +1183,10 @@ function cleanMammothDocxHtml(html) {
     h = h.replace(/([A-Ga-g])\s*<sup>\s*b([/a-zA-Z0-9_#+-]*)\s*<\/sup>/gi, '$1b$2');
     h = h.replace(/([A-Ga-g])\s*<sup>\s*#([/a-zA-Z0-9_#+-]*)\s*<\/sup>/g, '$1#$2');
     
-    // 3. Unwrap chord roots mistakenly enclosed in <sup>:
+    // 3. Move trailing slashes outside <sup>: e.g. <sup>7/</sup> -> <sup>7</sup>/, <sup>/</sup> -> /
+    h = h.replace(/<sup>([^<]*)\/<\/sup>/g, (m, inner) => inner ? `<sup>${inner}</sup>/` : '/');
+
+    // 4. Unwrap chord roots mistakenly enclosed in <sup>:
     // In MS Word, Brad frequently formatted whole chords or roots as superscript (e.g. <sup>C</sup>/G, <sup>Cmaj7</sup>/G, <sup>Am</sup>/D, <sup>Fadd9/</sup>A).
     // We unwrap the musical root note onto the standard baseline so that roots stay full-size:
     h = h.replace(/<sup>\s*([A-Ga-g][#b]?)([^<]*)<\/sup>/g, (m, root, rest) => {
@@ -1190,14 +1200,20 @@ function cleanMammothDocxHtml(html) {
         return root;
     });
 
-    // 4. Attach standalone superscript slashes: e.g. <sup>/</sup>C -> /C
+    // 5. Unwrap subscript bass notes (e.g. <sub>Eb</sub> -> Eb)
+    h = h.replace(/<sub>\s*([A-Ga-g][#b]?)\s*<\/sub>/gi, '$1');
+
+    // 6. Unwrap standalone <sup>add...</sup> onto baseline (e.g. C<sup>add9</sup> -> Cadd9)
+    h = h.replace(/<sup>\s*(add[0-9a-zA-Z#b+-]*)\s*<\/sup>/gi, ' $1');
+
+    // 7. Attach standalone superscript slashes: e.g. <sup>/</sup>C -> /C
     h = h.replace(/<sup>\s*\/\s*<\/sup>\s*([A-Ga-g][#b]?)/g, '/$1');
     h = h.replace(/<sup>\s*\/\s*<\/sup>/g, '/');
     
-    // 5. Normalize accidental spaces inside chords: e.g. "B  b" -> "Bb", "F  #" -> "F#"
+    // 8. Normalize accidental spaces inside chords: e.g. "B  b" -> "Bb", "F  #" -> "F#"
     h = h.replace(/\b([A-Ga-g])\s+([b#])\b/g, '$1$2');
     
-    // 6. Smush unsmushed chord extensions separated by spaces:
+    // 9. Smush unsmushed chord extensions separated by spaces:
     // e.g. "C maj7" -> "Cmaj7", "Bb add9maj7" -> "Bbadd9maj7", "Am add9" -> "Amadd9", "Bb 69" -> "Bb69", "G sus" -> "Gsus"
     const smushPattern = /\b([A-Ga-g][#b]?m?)\s+((?:maj|min|dim|aug|sus|add|m7|m9|m11|[0-9])[a-zA-Z0-9#b+-]*)/gi;
     let prev = null;
@@ -1206,7 +1222,7 @@ function cleanMammothDocxHtml(html) {
         h = h.replace(smushPattern, '$1$2');
     }
     
-    // 7. Strip redundant top header line if it repeats the song title / Brad Yoder / tuning
+    // 10. Strip redundant top header line if it repeats the song title / Brad Yoder / tuning
     // e.g. <p>AGAIN -- brad yoder (D, G capo 7)</p>, <p>earring -- brad yoder E (Ab capo 9)</p>,
     // <p>em/G (am/C, capo 7)</p>, <p>ONE EXCUSE - brad yoder (G, D capo 5)</p>
     h = h.replace(/^\s*<p[^>]*>(?:.*?(?:brad\s+yoder|capo|[A-Ga-g][#b♯♭]?\s*\(.*?\)).*?)<\/p>\s*/i, '');
@@ -1218,9 +1234,10 @@ function cleanMammothDocxHtml(html) {
 // In Fancy mode ([¶] ON):
 // 1. Root stays full-size on the baseline (e.g. B, G, A, F♯).
 // 2. Extensions / minor qualities sit in superscript (e.g. B<sup>m</sup>, B<sup>m7</sup>, F♯<sup>msus</sup>, G<sup>maj7</sup>).
+//    Chords with 'add' (like Cadd9, Fadd9) keep 'add...' on the baseline (Cadd9, A<sup>m</sup>add9).
 // 3. Slash bass notes sit in subscript (e.g. B<sup>m</sup>/<sub>A</sub>, G/<sub>D</sub>, A/<sub>C♯</sub>, /<sub>F♯</sub>).
 // In Plain mode ([¶] OFF):
-// Everything flattens to clean single-line ASCII text (e.g. Bm/A, G/D, A/C#, F#msus).
+// Everything flattens to clean single-line ASCII text (e.g. Bm/A, G/D, A/C#, F#msus, Cadd9).
 function formatChordTokenHtml(root, qualityAndExt, bass, bassExt, isFancy) {
     if (!root) return '';
     const capRoot = root.charAt(0).toUpperCase() + root.slice(1);
@@ -1232,7 +1249,22 @@ function formatChordTokenHtml(root, qualityAndExt, bass, bassExt, isFancy) {
 
     let extHtml = '';
     if (finalExt) {
-        extHtml = isFancy ? `<sup>${finalExt}</sup>` : finalExt;
+        if (!isFancy) {
+            extHtml = finalExt;
+        } else {
+            // Keep 'add' extension tokens (e.g. Cadd9, Gadd9, Amadd9, Fadd9) anchored on the baseline
+            const addMatch = finalExt.match(/^(m|maj|dim|aug|sus|[0-9]+)?(add[0-9a-zA-Z♯♭+-]*)(.*)$/i);
+            if (addMatch) {
+                const prefix = addMatch[1] || '';
+                const addPart = addMatch[2];
+                const suffix = addMatch[3] || '';
+                const prefixHtml = prefix ? `<sup>${prefix}</sup>` : '';
+                const suffixHtml = suffix ? `<sup>${suffix}</sup>` : '';
+                extHtml = `${prefixHtml}${addPart}${suffixHtml}`;
+            } else {
+                extHtml = `<sup>${finalExt}</sup>`;
+            }
+        }
     }
 
     let bassHtml = '';
