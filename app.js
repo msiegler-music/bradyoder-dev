@@ -353,7 +353,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.27";
+const APP_BUILD_VERSION = "v1.28";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1198,6 +1198,63 @@ function cleanMammothDocxHtml(html) {
     return h;
 }
 
+// Format chords for fancy display: convert accidentals to authentic glyphs (♯ and ♭)
+// and capitalize lowercase roots/bass notes (am -> Am, bm -> Bm, f#msus -> F♯msus, /f# -> /F♯)
+function formatChordsFancy(html) {
+    if (!html) return html;
+    const parser = new DOMParser();
+    const doc = parser.parseFromString(`<div>${html}</div>`, 'text/html');
+    const container = doc.body.firstElementChild;
+    if (!container) return html;
+
+    const paragraphs = container.querySelectorAll('p, tr');
+    paragraphs.forEach(p => {
+        const text = p.textContent || "";
+        if (text.includes('|') || text.includes('||:') || text.includes(':||')) {
+            p.innerHTML = p.innerHTML.replace(CHORD_TOKEN_REGEX, (match, soloSlash, root, qualityAndExt, bass, bassExt) => {
+                if (soloSlash) {
+                    const pitch = soloSlash.slice(1);
+                    const capPitch = pitch.charAt(0).toUpperCase() + pitch.slice(1).replace(/#/g, '♯').replace(/b/g, '♭');
+                    return '/' + capPitch;
+                }
+                if (!root) return match;
+                const newRoot = root.charAt(0).toUpperCase() + root.slice(1).replace(/#/g, '♯').replace(/b/g, '♭');
+                const bodyStr = (qualityAndExt || '').replace(/#/g, '♯').replace(/b/g, '♭');
+                let newBass = '';
+                if (bass) {
+                    const capBass = bass.charAt(0).toUpperCase() + bass.slice(1).replace(/#/g, '♯').replace(/b/g, '♭');
+                    const bExt = (bassExt || '').replace(/#/g, '♯').replace(/b/g, '♭');
+                    newBass = '/' + capBass + bExt;
+                }
+                return `${newRoot}${bodyStr}${newBass}`;
+            });
+        } else if (text.includes('capo') || (text.includes('(') && text.includes(')'))) {
+            p.innerHTML = p.innerHTML.replace(/\(([^)]+)\)/g, (parenMatch, innerContent) => {
+                const formattedInner = innerContent.replace(CHORD_TOKEN_REGEX, (match, soloSlash, root, qualityAndExt, bass, bassExt) => {
+                    if (soloSlash) {
+                        const pitch = soloSlash.slice(1);
+                        const capPitch = pitch.charAt(0).toUpperCase() + pitch.slice(1).replace(/#/g, '♯').replace(/b/g, '♭');
+                        return '/' + capPitch;
+                    }
+                    if (!root) return match;
+                    const newRoot = root.charAt(0).toUpperCase() + root.slice(1).replace(/#/g, '♯').replace(/b/g, '♭');
+                    const bodyStr = (qualityAndExt || '').replace(/#/g, '♯').replace(/b/g, '♭');
+                    let newBass = '';
+                    if (bass) {
+                        const capBass = bass.charAt(0).toUpperCase() + bass.slice(1).replace(/#/g, '♯').replace(/b/g, '♭');
+                        const bExt = (bassExt || '').replace(/#/g, '♯').replace(/b/g, '♭');
+                        newBass = '/' + capBass + bExt;
+                    }
+                    return `${newRoot}${bodyStr}${newBass}`;
+                });
+                return `(${formattedInner})`;
+            });
+        }
+    });
+
+    return container.innerHTML;
+}
+
 // Convert chord accidentals (# and b) to authentic musical typographic glyphs (♯ and ♭)
 function applyMusicalAccidentalGlyphs(html) {
     if (!html) return html;
@@ -1259,6 +1316,9 @@ function transposePitchString(pitch, semitones, preferFlat = false) {
         scale = preferFlat ? FLAT_SCALE_ASCII : SHARP_SCALE_ASCII;
     }
     const transposed = scale[semitoneVal];
+    if (isFancyFormattingMode) {
+        return transposed;
+    }
     return isLower ? transposed.toLowerCase() : transposed;
 }
 
@@ -1390,7 +1450,7 @@ function renderDocxChartHtml() {
 
     let html;
     if (currentTransposeSemitones === 0 && currentAccidentalMode === 'auto') {
-        html = isFancyFormattingMode ? applyMusicalAccidentalGlyphs(rawCurrentDocxHtml) : revertToAsciiAccidentals(rawCurrentDocxHtml);
+        html = isFancyFormattingMode ? formatChordsFancy(rawCurrentDocxHtml) : revertToAsciiAccidentals(rawCurrentDocxHtml);
     } else {
         html = transposeChartHtml(rawCurrentDocxHtml, currentTransposeSemitones);
         if (!isFancyFormattingMode) {
@@ -1533,7 +1593,7 @@ async function loadChartFile(filename) {
             const fancyClass = isFancyFormattingMode ? "docx-fancy-mode" : "";
             let initialHtml = docxHtml;
             if (rawCurrentDocxHtml) {
-                initialHtml = isFancyFormattingMode ? applyMusicalAccidentalGlyphs(docxHtml) : revertToAsciiAccidentals(docxHtml);
+                initialHtml = isFancyFormattingMode ? formatChordsFancy(docxHtml) : revertToAsciiAccidentals(docxHtml);
             }
             container.innerHTML = `<div class="docx-content ${fancyClass}">${initialHtml}</div>`;
             updateTransposeUI();
