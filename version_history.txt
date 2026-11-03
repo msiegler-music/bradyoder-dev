@@ -1,0 +1,232 @@
+================================================================================
+BRAD YODER SONG CHART & LYRICS VIEWER - VERSION HISTORY
+================================================================================
+
+v1.0 / Legacy v1 (Sep 19, 2026 - 16:40)
+--------------------------------------------------------------------------------
+- Original deployment package (deploy-b-rad-v1.zip / app-v1.js / index-v1.html).
+- Basic static HTML/JS viewer with single-column layout and simple song listings.
+
+v1.2 (Oct 30, 2026 - 23:59:12)
+--------------------------------------------------------------------------------
+- Initial prototype for the v2 dual-pane split architecture (index-v2.html, app-v2.js).
+- Added client-side Mammoth.js for .docx rendering and PDF.js for canvas rendering.
+- Merged initial song-to-chart and audio datasets.
+
+v1.3 (Oct 31, 2026 - 10:23:36)
+--------------------------------------------------------------------------------
+- Relational schema normalization: split monolithic dataset into songs.csv, albums.csv,
+  charts.csv, lyrics.csv, and audio.csv.
+- Added dynamic discography album dropdown filtering.
+- Integrated embedded Bandcamp and YouTube audio players.
+
+v1.4 (Oct 31, 2026 - 10:44:13)
+--------------------------------------------------------------------------------
+- Deep chart alternate tabs integration: enables multi-version switching between
+  lead sheets (e.g. DOCX vs PDF, capo variants, open tunings).
+- Refined tuning and capo metadata extraction in the chart viewer header.
+
+v1.5 (Oct 31, 2026 - 11:11:36)
+--------------------------------------------------------------------------------
+- Deep URL state synchronization:
+  * Two-way sync with URL query parameters (?song=<slug>&album=<id>&chart=<idx>).
+  * Full browser Back/Forward (popstate) navigation support.
+  * Auto-scrolling selected song into view in the sidebar playlist.
+
+v1.6 (Oct 31, 2026 - 11:26:39)
+--------------------------------------------------------------------------------
+- Audio player stability overhaul:
+  * Resolved playback interruptions when switching songs.
+  * Added sticky preference settings popover for streaming provider (YouTube vs Spotify).
+  * Graceful fallback placeholder when no audio recording exists.
+
+v1.7-pre-scrape (Oct 31, 2026 - 11:36:28)
+--------------------------------------------------------------------------------
+- Snapshot prior to comprehensive web scrape of missing lyrics and unrecorded song metadata.
+
+v1.8-pre-unrecorded-audio (Oct 31, 2026 - 12:12:59)
+--------------------------------------------------------------------------------
+- Intermediate checkpoint before integrating YouTube audio links for unrecorded songs.
+
+v1.9-pre-live-audio (Oct 31, 2026 - 12:47:50)
+--------------------------------------------------------------------------------
+- Checkpoint prior to integrating live concert and rehearsal audio recordings.
+
+v2.0-pre-full-lyrics (Oct 31, 2026 - 13:09:47)
+--------------------------------------------------------------------------------
+- Checkpoint prior to full lyrics corpus audit and synchronization.
+
+v2.1-unrecorded-audio-links (Oct 31, 2026 - 13:58:39)
+--------------------------------------------------------------------------------
+- Integrated unrecorded audio links and verified playback across all available sources.
+
+v2.2-lyrics-audit-complete (Oct 31, 2026 - 14:48:47)
+--------------------------------------------------------------------------------
+- Completed comprehensive lyrics audit: 181/181 songs populated with full lyrics.
+
+v2.3-songwriting-game-prompts (Oct 31, 2026 - 15:44:31)
+--------------------------------------------------------------------------------
+- Integrated composition dates, songwriting game prompt origins, and background notes.
+
+v2.4-clean-song-titles (Oct 31, 2026 - 16:35:12)
+--------------------------------------------------------------------------------
+- Cleaned and normalized song title typography and punctuation across all datasets.
+
+v2.5-v2-switchover (Oct 31, 2026 - 17:39:20)
+--------------------------------------------------------------------------------
+- Renamed development v2 prototypes to production root files:
+  * index-v2.html -> index.html
+  * app-v2.js -> app.js
+- Updated script inclusion tag in index.html to load app.js.
+
+v3.0-audio-source-badges (Nov 01, 2026 - 15:37:37)
+--------------------------------------------------------------------------------
+- Removed text "Songs" next to desktop hamburger button (now clean iconic '☰').
+- Implemented low-profile audio source badges (Option 1):
+  * Muted sub-bar directly beneath the player: [• Bandcamp] [YouTube] [Spotify].
+  * Dynamically detects all available streams per song.
+  * Only appears when 2+ sources exist for the active song.
+  * Instant 1-click switching with active source dot indicator.
+- Incremented cache buster to v=1.02.
+
+v3.1-clean-audio-badges (Nov 01, 2026 - 15:38:23)
+--------------------------------------------------------------------------------
+- Removed the label "SOURCE" from the audio sub-bar.
+- Centered the stream badges directly beneath the player for a balanced, minimalist look.
+- Incremented cache buster to v=1.03.
+
+v3.2-rehearsal-merges-and-lyrics (Nov 01, 2026 - 15:50:27)
+--------------------------------------------------------------------------------
+- Cleaned and consolidated rehearsal lead sheets into studio catalog:
+  * "Love Is All" merged directly into "love is all i have for you" (Excellent Trouble).
+  * "IWOLYD" merged directly into "i will only let you down" (Excellent Trouble).
+  * "SSAlgorithm" merged directly into "some strange algorithm" (Excellent Trouble).
+  * "Maria" and "Joseph and Maria" merged into their canonical unrecorded catalog songs.
+  * Extracted full lyrics for "Like A Treasure" directly into lyrics.csv.
+- Elevated 4 more studio tracks into fully complete status (Chords + Lyrics + Audio).
+- Added contextual "Rehearsal Lead Sheet" card on the right pane for instrumental/rehearsal pieces.
+- Incremented cache buster to v=1.04.
+
+v3.3-clean-provider-badges (Nov 01, 2026 - 15:56:49)
+--------------------------------------------------------------------------------
+- Removed indicator dots from streaming provider badges:
+  * Clean, minimal text-only pill badges: [Bandcamp] [YouTube] [Spotify].
+  * Active source is cleanly highlighted with solid blue fill (#0284c7) and white text.
+- Incremented cache buster to v=1.05.
+
+v3.4-album-track-ordering (Nov 01, 2026 - 16:34:26)
+--------------------------------------------------------------------------------
+- Integrated official album track sequencing for all 8 studio albums:
+  * Added 'track_number' column to songs.csv (117 studio tracks numbered 1..N).
+  * Automatically defaults to natural album track sequence when an album filter is chosen.
+  * Added low-profile sort button in the sidebar header: [Track 1–N] <-> [A–Z].
+  * Renders tabular track number prefixes (e.g. "01. Again", "02. How It Ends") in the playlist.
+  * Preserves alphabetical (A-Z) ordering when viewing "All Songs".
+- Incremented cache buster to v=1.06.
+
+v3.5 - Live Production Deployment on GitHub Pages: https://msiegler-music.github.io/bradyoder/
+v3.6 - Multi-Environment Setup: Production and Staging/Dev (https://msiegler-music.github.io/bradyoder-dev/)
+v3.7 - Dynamic DEV badge: visible exclusively on development/staging hostnames
+v3.8 - Compact single rotating button for mobile view mode (Both -> Chords -> Lyrics)
+v3.9 - Always reset mobile pane mode to 'Both' on every song selection
+v3.10 - Keep sidebar open on song selection so user can initiate playback
+v3.11 - Production Release: default to Both view + keep sidebar drawer open on selection
+v3.12 - Dev: Restructured 14 unformatted blob lyrics into standard verses/choruses/bridges
+v3.13 - Dev: Realigned and extracted Bridge stanzas to match chord chart structures
+v3.14 - Production Release: Structural lyrics alignment (14 blob splits + 25 Bridge realignments)
+
+v3.15 - Interactive Transposition Engine (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Added interactive client-side chord transposition engine ([-1] [Orig] [+1]) for .docx charts.
+- Parses and transposes musical measure lines, slash notes, and key signatures in real time.
+- Incremented cache buster to v=1.15.
+
+v3.16 - Enharmonic Accidental Toggle (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Added enharmonic toggle button ([♯ / ♭ / ♯/♭]) to switch spellings between sharps and flats.
+- Incremented cache buster to v=1.16.
+
+v3.17 - Suppress Transposition on Nashville Charts (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Automatically hides transposition controls for NUMBERS charts (*-NUMBERS.docx), which are
+  key-independent relative scale degree charts.
+- Incremented cache buster to v=1.17.
+
+v3.18 - Full Catalog Transposition Support (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Expanded CHORD_TOKEN_REGEX to recognize extended chords, slash bass tokens, and complex
+  qualities across all 192 charts in Brad Yoder's catalog.
+- Incremented cache buster to v=1.18.
+
+v3.19 - Word Formatting Pre-cleaning (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Pre-cleaned Mammoth Word formatting artifacts (superscripts for flats like B^b -> Bb).
+- Reassembled split slash chords (e.g. <sup>Eb/</sup>Bb -> Eb/Bb).
+- Incremented cache buster to v=1.19.
+
+v3.20 - Word Spaced Chord Smushing & Mobile Dropdown (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Added auto-smushing for spaced chords in Brad's charts (e.g. "C maj7" -> "Cmaj7", "Bb add9maj7" -> "Bbadd9maj7").
+- Replaced overflowing desktop version button tower on mobile with a compact <select> dropdown.
+- Supported stacked chord qualities (e.g. "f#msus").
+- Incremented cache buster to v=1.20.
+
+v3.21 - Compact Stepper Layout & Fancy Formatting Toggle (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Redesigned transpose control bar into a compact layout: [Orig][▲/▼][♯/♭] [¶].
+- Added [¶] toggle button for fancy vs plain formatting (controlling superscript extensions).
+- Incremented cache buster to v=1.21.
+
+v3.22 - Authentic Musical Glyphs (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Transposed chords rendered using authentic typographic glyphs: Sharp ♯ (U+266F) and Flat ♭ (U+266D).
+- Incremented cache buster to v=1.22.
+
+v3.23 - Settings Popover Version Badge (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Added live App Build Version display in the ⚙ Settings popover for instant cache bust verification.
+- Incremented cache buster to v=1.23.
+
+v3.24 - Force Reload Cache Buster (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Added a compact, textless [🔄] force-reload button in the Settings popover to bypass mobile browser cache.
+- Incremented cache buster to v=1.24.
+
+v3.25 - Universal Musical Accidentals (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Extended authentic ♯ and ♭ glyphs to original, untransposed charts.
+- Incremented cache buster to v=1.25.
+
+v3.26 - Conditional Musical Accidentals on Fancy Mode (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Tied musical symbols directly to the [¶] toggle:
+  * Fancy Mode ON ([¶] active): converts ASCII # and b to ♯ and ♭.
+  * Plain Mode OFF: reverts all accidentals to standard ASCII # and b on a flat baseline.
+- Incremented cache buster to v=1.26.
+
+v3.27 - Accidental Chooser Visibility with Fixed Position (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Hid the [♯/♭] chooser button when a chart is in its original key (untransposed).
+- Maintained the exact horizontal position of the [▲/▼] stepper using visibility layout preservation.
+- Incremented cache buster to v=1.27.
+
+v3.28 - Lowercase Chord Capitalization in Fancy Mode (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- In fancy mode ([¶] ON), automatically capitalized Brad's lowercase chords and slash notes:
+  * bm -> Bm, am -> Am, em -> Em, dm -> Dm, gm -> Gm, f#msus -> F♯msus, /f# -> /F♯.
+- In plain mode ([¶] OFF), preserved original authoring casing.
+- Incremented cache buster to v=1.28.
+
+v3.29 - Top-of-Chart Key & Tuning Banner (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Removed long tuning/capo text from the left pane header bar to reclaim space.
+- Created dedicated styled banner card (.chart-tuning-banner) at the top of the chord chart.
+- Automatically stripped redundant DOCX song title lines that repeated the song title or Brad Yoder.
+- Incremented cache buster to v=1.29.
+
+v3.30 - Dynamic Capo Transposition (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Dynamic Capo calculation: when transposing, automatically recalculates and shifts the Capo fret
+  so the guitarist plays the exact same chord shapes (e.g. "capo 7" + 1 -> "capo 8", -7 -> "open (no capo)").
+- Incremented cache buster to v=1.30.
+================================================================================
