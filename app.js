@@ -353,7 +353,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.30";
+const APP_BUILD_VERSION = "v1.31";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1203,8 +1203,38 @@ function cleanMammothDocxHtml(html) {
     return h;
 }
 
-// Format chords for fancy display: convert accidentals to authentic glyphs (♯ and ♭)
-// and capitalize lowercase roots/bass notes (am -> Am, bm -> Bm, f#msus -> F♯msus, /f# -> /F♯)
+// Format chords for display:
+// In Fancy mode ([¶] ON):
+// 1. Root stays full-size on the baseline (e.g. B, G, A, F♯).
+// 2. Extensions / minor qualities sit in superscript (e.g. B<sup>m</sup>, B<sup>m7</sup>, F♯<sup>msus</sup>, G<sup>maj7</sup>).
+// 3. Slash bass notes sit in subscript (e.g. B<sup>m</sup>/<sub>A</sub>, G/<sub>D</sub>, A/<sub>C♯</sub>, /<sub>F♯</sub>).
+// In Plain mode ([¶] OFF):
+// Everything flattens to clean single-line ASCII text (e.g. Bm/A, G/D, A/C#, F#msus).
+function formatChordTokenHtml(root, qualityAndExt, bass, bassExt, isFancy) {
+    if (!root) return '';
+    const capRoot = root.charAt(0).toUpperCase() + root.slice(1);
+    const finalRoot = isFancy ? capRoot.replace(/#/g, '♯').replace(/b/g, '♭') : capRoot.replace(/♯/g, '#').replace(/♭/g, 'b');
+
+    // Clean any existing HTML tags from Mammoth (e.g. <sup>9</sup>)
+    const cleanExt = (qualityAndExt || '').replace(/<\/?(?:sup|sub)>/gi, '');
+    let finalExt = isFancy ? cleanExt.replace(/#/g, '♯').replace(/b/g, '♭') : cleanExt.replace(/♯/g, '#').replace(/♭/g, 'b');
+
+    let extHtml = '';
+    if (finalExt) {
+        extHtml = isFancy ? `<sup>${finalExt}</sup>` : finalExt;
+    }
+
+    let bassHtml = '';
+    if (bass) {
+        const capBass = bass.charAt(0).toUpperCase() + bass.slice(1);
+        const bExt = (bassExt || '').replace(/<\/?(?:sup|sub)>/gi, '');
+        const finalBass = isFancy ? (capBass + bExt).replace(/#/g, '♯').replace(/b/g, '♭') : (capBass + bExt).replace(/♯/g, '#').replace(/♭/g, 'b');
+        bassHtml = isFancy ? `/<sub>${finalBass}</sub>` : `/${finalBass}`;
+    }
+
+    return `${finalRoot}${extHtml}${bassHtml}`;
+}
+
 function formatChordsFancy(html) {
     if (!html) return html;
     const parser = new DOMParser();
@@ -1220,18 +1250,9 @@ function formatChordsFancy(html) {
                 if (soloSlash) {
                     const pitch = soloSlash.slice(1);
                     const capPitch = pitch.charAt(0).toUpperCase() + pitch.slice(1).replace(/#/g, '♯').replace(/b/g, '♭');
-                    return '/' + capPitch;
+                    return isFancyFormattingMode ? `/<sub>${capPitch}</sub>` : `/${capPitch}`;
                 }
-                if (!root) return match;
-                const newRoot = root.charAt(0).toUpperCase() + root.slice(1).replace(/#/g, '♯').replace(/b/g, '♭');
-                const bodyStr = (qualityAndExt || '').replace(/#/g, '♯').replace(/b/g, '♭');
-                let newBass = '';
-                if (bass) {
-                    const capBass = bass.charAt(0).toUpperCase() + bass.slice(1).replace(/#/g, '♯').replace(/b/g, '♭');
-                    const bExt = (bassExt || '').replace(/#/g, '♯').replace(/b/g, '♭');
-                    newBass = '/' + capBass + bExt;
-                }
-                return `${newRoot}${bodyStr}${newBass}`;
+                return formatChordTokenHtml(root, qualityAndExt, bass, bassExt, isFancyFormattingMode);
             });
         } else if (text.includes('capo') || (text.includes('(') && text.includes(')'))) {
             p.innerHTML = p.innerHTML.replace(/\(([^)]+)\)/g, (parenMatch, innerContent) => {
@@ -1239,18 +1260,9 @@ function formatChordsFancy(html) {
                     if (soloSlash) {
                         const pitch = soloSlash.slice(1);
                         const capPitch = pitch.charAt(0).toUpperCase() + pitch.slice(1).replace(/#/g, '♯').replace(/b/g, '♭');
-                        return '/' + capPitch;
+                        return isFancyFormattingMode ? `/<sub>${capPitch}</sub>` : `/${capPitch}`;
                     }
-                    if (!root) return match;
-                    const newRoot = root.charAt(0).toUpperCase() + root.slice(1).replace(/#/g, '♯').replace(/b/g, '♭');
-                    const bodyStr = (qualityAndExt || '').replace(/#/g, '♯').replace(/b/g, '♭');
-                    let newBass = '';
-                    if (bass) {
-                        const capBass = bass.charAt(0).toUpperCase() + bass.slice(1).replace(/#/g, '♯').replace(/b/g, '♭');
-                        const bExt = (bassExt || '').replace(/#/g, '♯').replace(/b/g, '♭');
-                        newBass = '/' + capBass + bExt;
-                    }
-                    return `${newRoot}${bodyStr}${newBass}`;
+                    return formatChordTokenHtml(root, qualityAndExt, bass, bassExt, isFancyFormattingMode);
                 });
                 return `(${formattedInner})`;
             });
@@ -1338,14 +1350,31 @@ function transposeChordString(text, semitones, preferFlat = false) {
     return text.replace(CHORD_TOKEN_REGEX, (match, soloSlash, root, qualityAndExt, bass, bassExt) => {
         if (soloSlash) {
             const pitch = soloSlash.slice(1);
-            return '<span class="docx-chord-transposed">/' + transposePitchString(pitch, semitones, preferFlat) + '</span>';
+            const capPitch = transposePitchString(pitch, semitones, preferFlat);
+            const finalPitch = isFancyFormattingMode ? `/<sub>${capPitch}</sub>` : `/${capPitch}`;
+            return `<span class="docx-chord-transposed">${finalPitch}</span>`;
         }
         if (!root) return match;
-        const bodyStr = qualityAndExt || '';
         const newRoot = transposePitchString(root, semitones, preferFlat);
-        const bassExtStr = bassExt || '';
-        const newBass = bass ? ('/' + transposePitchString(bass, semitones, preferFlat) + bassExtStr) : '';
-        return `<span class="docx-chord-transposed">${newRoot}${bodyStr}${newBass}</span>`;
+
+        // Quality and extensions (m, maj7, add9, sus, etc.)
+        const cleanExt = (qualityAndExt || '').replace(/<\/?(?:sup|sub)>/gi, '');
+        let finalExt = isFancyFormattingMode ? cleanExt.replace(/#/g, '♯').replace(/b/g, '♭') : cleanExt.replace(/♯/g, '#').replace(/♭/g, 'b');
+        let extHtml = '';
+        if (finalExt) {
+            extHtml = isFancyFormattingMode ? `<sup>${finalExt}</sup>` : finalExt;
+        }
+
+        // Bass note: subscript in fancy mode
+        let bassHtml = '';
+        if (bass) {
+            const capBass = transposePitchString(bass, semitones, preferFlat);
+            const bExt = (bassExt || '').replace(/<\/?(?:sup|sub)>/gi, '');
+            const finalExt = isFancyFormattingMode ? bExt.replace(/#/g, '♯').replace(/b/g, '♭') : bExt.replace(/♯/g, '#').replace(/♭/g, 'b');
+            bassHtml = isFancyFormattingMode ? `/<sub>${capBass}${finalExt}</sub>` : `/${capBass}${finalExt}`;
+        }
+
+        return `<span class="docx-chord-transposed">${newRoot}${extHtml}${bassHtml}</span>`;
     });
 }
 

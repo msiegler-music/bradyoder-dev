@@ -229,4 +229,16 @@ v3.30 - Dynamic Capo Transposition (Nov 02, 2026)
 - Dynamic Capo calculation: when transposing, automatically recalculates and shifts the Capo fret
   so the guitarist plays the exact same chord shapes (e.g. "capo 7" + 1 -> "capo 8", -7 -> "open (no capo)").
 - Incremented cache buster to v=1.30.
+
+v3.31 - Inline Root with Superscript Quality and Subscript Bass (Nov 02, 2026)
+--------------------------------------------------------------------------------
+- Cosmetic chord normalizations in fancy mode ([¶] ON):
+  * Root notes remain full size on the normal text baseline (e.g. B, G, A, F♯).
+  * Minor qualities and extensions sit in superscript (e.g. B<sup>m</sup>, B<sup>m7</sup>, F♯<sup>msus</sup>, G<sup>maj7</sup>).
+  * Slash bass notes sit in subscript (e.g. B<sup>m</sup>/<sub>A</sub>, G/<sub>D</sub>, A/<sub>C♯</sub>, /<sub>F♯</sub>).
+  * When transposing, the inline root and subscript bass formatting are preserved seamlessly.
+  * In plain mode ([¶] OFF), chords flatten cleanly to standard single-line ASCII text.
+- Added public root copy of version_history.txt.
+- Incremented cache buster to v=1.31.
 ================================================================================
+
