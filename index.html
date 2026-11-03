@@ -618,6 +618,43 @@
             overflow-y: auto;
         }
 
+        /* Chart Tuning Banner at top of chart content */
+        .chart-tuning-banner {
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 6px;
+            background: #f0fdf4;
+            border: 1px solid #bbf7d0;
+            border-radius: 6px;
+            padding: 6px 10px;
+            margin-bottom: 14px;
+            font-size: 0.85rem;
+            color: #166534;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+        }
+        .chart-tuning-icon {
+            font-size: 0.95rem;
+        }
+        .chart-tuning-label {
+            font-weight: 600;
+            color: #15803d;
+        }
+        .chart-tuning-value {
+            font-weight: 700;
+            color: #14532d;
+        }
+        .chart-tuning-pill-transposed {
+            font-size: 0.72rem;
+            font-weight: 700;
+            background: #dcfce7;
+            border: 1px solid #86efac;
+            color: #166534;
+            padding: 1px 5px;
+            border-radius: 4px;
+            margin-left: 4px;
+        }
+
         /* Styling for Mammoth DOCX semantic HTML output */
         .docx-content {
             font-size: 1rem;
@@ -905,12 +942,6 @@
             #version-select-dropdown {
                 display: inline-block !important;
             }
-            #chart-tuning-meta {
-                max-width: 110px;
-                overflow: hidden;
-                text-overflow: ellipsis;
-                white-space: nowrap;
-            }
         }
 
         /* Small Mobile Screen Optimizations (phones < 600px) */
@@ -995,7 +1026,7 @@
                     <div class="settings-version-info">
                         <span>App Version:</span>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <span id="app-version-badge" class="settings-version-tag">v1.28</span>
+                            <span id="app-version-badge" class="settings-version-tag">v1.29</span>
                             <button type="button" id="force-reload-btn" class="settings-reload-btn" title="Force reload (clear cache)">🔄</button>
                         </div>
                     </div>
@@ -1009,7 +1040,7 @@
             <div class="viewer-pane" id="chart-pane">
                 <div class="pane-header">
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <span id="chart-tuning-meta" style="font-size: 0.95rem; font-weight: 500; color: #0284c7;"></span>
+                        <span id="chart-tuning-meta" style="display: none;"></span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
                         <!-- Transpose Control Bar: [Orig] [+/-] [#/b] [¶] -->
@@ -1045,6 +1076,6 @@
     </div>
 
     <!-- Application Script -->
-    <script src="app.js?v=1.28"></script>
+    <script src="app.js?v=1.29"></script>
 </body>
 </html>

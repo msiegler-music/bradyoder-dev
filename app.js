@@ -353,7 +353,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.28";
+const APP_BUILD_VERSION = "v1.29";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1195,6 +1195,11 @@ function cleanMammothDocxHtml(html) {
         h = h.replace(smushPattern, '$1$2');
     }
     
+    // 7. Strip redundant top header line if it repeats the song title / Brad Yoder / tuning
+    // e.g. <p>AGAIN -- brad yoder (D, G capo 7)</p>, <p>earring -- brad yoder E (Ab capo 9)</p>,
+    // <p>em/G (am/C, capo 7)</p>, <p>ONE EXCUSE - brad yoder (G, D capo 5)</p>
+    h = h.replace(/^\s*<p[^>]*>(?:.*?(?:brad\s+yoder|capo|[A-Ga-g][#b♯♭]?\s*\(.*?\)).*?)<\/p>\s*/i, '');
+
     return h;
 }
 
@@ -1442,6 +1447,58 @@ function updateTransposeUI() {
     }
 }
 
+// Generate the top tuning/capo banner for the chart
+function getTuningBannerHtml(semitones) {
+    if (!currentActiveSong) return '';
+    const rawTuning = (currentActiveSong.tuning_capo || '').trim();
+    if (!rawTuning) return '';
+
+    let preferFlat = false;
+    if (currentAccidentalMode === 'flat') {
+        preferFlat = true;
+    } else if (currentAccidentalMode === 'sharp') {
+        preferFlat = false;
+    } else {
+        preferFlat = semitones < 0;
+    }
+
+    // Transpose chord tokens inside the tuning string (e.g. D (G/Em, capo 7) -> E (A/F♯m, capo 7))
+    const displayTuning = rawTuning.replace(CHORD_TOKEN_REGEX, (match, soloSlash, root, qualityAndExt, bass, bassExt) => {
+        if (soloSlash) {
+            const pitch = soloSlash.slice(1);
+            return '/' + transposePitchString(pitch, semitones, preferFlat);
+        }
+        if (!root) return match;
+        const upperRoot = root.toUpperCase();
+        if (upperRoot === 'DADGAD' || upperRoot === 'CAPO' || upperRoot === 'OPEN') return match;
+        const newRoot = transposePitchString(root, semitones, preferFlat);
+        let body = (qualityAndExt || '');
+        if (isFancyFormattingMode) {
+            body = body.replace(/#/g, '♯').replace(/b/g, '♭');
+        } else {
+            body = body.replace(/♯/g, '#').replace(/♭/g, 'b');
+        }
+        let newBass = '';
+        if (bass) {
+            newBass = '/' + transposePitchString(bass, semitones, preferFlat) + (bassExt || '');
+        }
+        return `${newRoot}${body}${newBass}`;
+    });
+
+    let transBadge = '';
+    if (semitones !== 0) {
+        const sign = semitones > 0 ? `+${semitones}` : `${semitones}`;
+        transBadge = `<span class="chart-tuning-pill-transposed">Transposed ${sign}</span>`;
+    }
+
+    return `<div class="chart-tuning-banner">
+        <span class="chart-tuning-icon">🎸</span>
+        <span class="chart-tuning-label">Key & Tuning:</span>
+        <span class="chart-tuning-value">${displayTuning}</span>
+        ${transBadge}
+    </div>`;
+}
+
 function renderDocxChartHtml() {
     const chartContainer = document.getElementById("chart-container");
     if (!chartContainer) return;
@@ -1457,7 +1514,9 @@ function renderDocxChartHtml() {
             html = revertToAsciiAccidentals(html);
         }
     }
-    docxDiv.innerHTML = html;
+
+    const bannerHtml = getTuningBannerHtml(currentTransposeSemitones);
+    docxDiv.innerHTML = bannerHtml + html;
 }
 
 function toggleFancyFormattingMode() {
@@ -1595,7 +1654,8 @@ async function loadChartFile(filename) {
             if (rawCurrentDocxHtml) {
                 initialHtml = isFancyFormattingMode ? formatChordsFancy(docxHtml) : revertToAsciiAccidentals(docxHtml);
             }
-            container.innerHTML = `<div class="docx-content ${fancyClass}">${initialHtml}</div>`;
+            const bannerHtml = getTuningBannerHtml(0);
+            container.innerHTML = `<div class="docx-content ${fancyClass}">${bannerHtml}${initialHtml}</div>`;
             updateTransposeUI();
         } else if (ext === 'pdf') {
             // PDF.js renders PDF pages client-side onto HTML5 Canvas elements
