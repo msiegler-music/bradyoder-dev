@@ -365,5 +365,16 @@ v3.42 - Expandable Chart Toolbar Drawer with Treble Clef Pill (Nov 05, 2026)
   * Auto-collapses on outside click or re-tap.
   * Real-time chord transposition updates immediately as `[▲] [▼]` steppers are clicked.
 - Incremented cache buster to v=1.42.
+
+v3.43 - Synchronized Proportional Alignment for Floating Annotations (Nov 05, 2026)
+--------------------------------------------------------------------------------
+- Solved index drifting in Fancy Mode for floating meter shifts, arrows, and beat cues:
+  * In songs like "Maria", "Grand Canyon", "49", "At The Table", and "Local Band", Brad
+    spaced meter declarations (`1/2`, `2/2`, `3/2`) and push arrows (`←`) across the line above chords.
+  * In `compressMeasureWhitespaceFancy`, implemented paired proportional mapping: when a chord line
+    compresses spaces between bar lines, the floating annotation line above it scales in tandem,
+    keeping every time-signature and arrow anchored directly over its intended target measure.
+  * Replaces legacy Wingdings private-use characters (`\uf0df`, `\uf0e0`) with universal Unicode arrows.
+- Incremented cache buster to v=1.43.
 ================================================================================
 

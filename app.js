@@ -502,7 +502,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.42";
+const APP_BUILD_VERSION = "v1.43";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1502,19 +1502,99 @@ function compressMeasureWhitespaceFancy(html, isFancy) {
     const paras = html.match(/<p[^>]*>[\s\S]*?<\/p>/gi);
     if (!paras || paras.length === 0) return html;
 
-    return paras.map(p => {
-        const rawText = p.replace(/<[^>]+>/g, '');
-        // Only compress lines with measure bars '|' that are NOT volta header lines ('1.___')
-        if (rawText.includes('|') && !/(?:\b|\s)1\.[_\s]+/.test(rawText)) {
-            // Compress runs of 2+ spaces down to 1 space outside HTML tags
-            const parts = p.split(/(<[^>]+>)/g);
-            for (let i = 0; i < parts.length; i += 2) {
-                parts[i] = parts[i].replace(/ {2,}/g, ' ');
+    const outParas = [];
+    for (let i = 0; i < paras.length; i++) {
+        const currP = paras[i];
+        const nextP = (i + 1 < paras.length) ? paras[i + 1] : null;
+
+        const rawCurr = currP.replace(/<[^>]+>/g, '');
+        const rawNext = nextP ? nextP.replace(/<[^>]+>/g, '') : '';
+
+        // Check if currP is a floating annotation line indexing nextP:
+        // (has spaces before meter like 1/2, 2/2, 3/4, or arrows ←, or beat counts 1 2 3, above a chord line with '|')
+        const isFloatingAnnotation = nextP && rawNext.includes('|') && !rawCurr.includes('|') &&
+            !/(?:\b|\s)1\.[_\s]+/.test(rawCurr) &&
+            (/(?:\s{2,}|^)\b[1-9]\/[1-9]\b/.test(rawCurr) || /[\uf0df\uf0e0←→]/.test(rawCurr) || /\b1\s+2\s+3\b/.test(rawCurr));
+
+        if (isFloatingAnnotation) {
+            // Build position mapping between rawNext (original) and its compressed counterpart
+            const posMap = {};
+            const compChars = [];
+            let inSpaces = false;
+            for (let origIdx = 0; origIdx < rawNext.length; origIdx++) {
+                const char = rawNext[origIdx];
+                if (char === ' ') {
+                    if (!inSpaces) {
+                        compChars.push(' ');
+                        inSpaces = true;
+                    }
+                } else {
+                    inSpaces = false;
+                    compChars.push(char);
+                }
+                posMap[origIdx] = compChars.length - 1;
             }
-            return parts.join('');
+            const compNextRaw = compChars.join('');
+
+            // Remap tokens in rawCurr so they stay anchored directly above their intended measure positions
+            const cleanedCurr = rawCurr.replace(/\uf0df/g, '←').replace(/\uf0e0/g, '→');
+            const tokenRegex = /\S+/g;
+            let m;
+            const tokens = [];
+            while ((m = tokenRegex.exec(cleanedCurr)) !== null) {
+                tokens.push({ text: m[0], start: m.index });
+            }
+
+            if (tokens.length > 0) {
+                const compTopArr = new Array(compNextRaw.length).fill(' ');
+                let currCursor = 0;
+                for (const tok of tokens) {
+                    let targetPos;
+                    if (tok.start in posMap) {
+                        targetPos = posMap[tok.start];
+                    } else if (tok.start >= rawNext.length) {
+                        targetPos = compNextRaw.length + (tok.start - rawNext.length);
+                    } else {
+                        const prevKeys = Object.keys(posMap).map(Number).filter(k => k <= tok.start);
+                        targetPos = prevKeys.length > 0 ? posMap[Math.max(...prevKeys)] : 0;
+                    }
+
+                    if (targetPos < currCursor) {
+                        targetPos = currCursor;
+                    }
+
+                    while (compTopArr.length < targetPos + tok.text.length) {
+                        compTopArr.push(' ');
+                    }
+
+                    for (let j = 0; j < tok.text.length; j++) {
+                        compTopArr[targetPos + j] = tok.text[j];
+                    }
+
+                    currCursor = targetPos + tok.text.length + 1;
+                }
+
+                outParas.push(`<p>${compTopArr.join('').replace(/\s+$/, '')}</p>`);
+            } else {
+                outParas.push(currP);
+            }
+            continue;
         }
-        return p;
-    }).join('');
+
+        // Only compress lines with measure bars '|' that are NOT volta header lines ('1.___')
+        if (rawCurr.includes('|') && !/(?:\b|\s)1\.[_\s]+/.test(rawCurr)) {
+            // Compress runs of 2+ spaces down to 1 space outside HTML tags
+            const parts = currP.split(/(<[^>]+>)/g);
+            for (let k = 0; k < parts.length; k += 2) {
+                parts[k] = parts[k].replace(/ {2,}/g, ' ');
+            }
+            outParas.push(parts.join(''));
+        } else {
+            outParas.push(currP);
+        }
+    }
+
+    return outParas.join('');
 }
 
 function formatVoltaEndings(html, isFancy) {
