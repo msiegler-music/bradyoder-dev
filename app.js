@@ -502,7 +502,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.43";
+const APP_BUILD_VERSION = "v1.44";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1517,26 +1517,34 @@ function compressMeasureWhitespaceFancy(html, isFancy) {
             (/(?:\s{2,}|^)\b[1-9]\/[1-9]\b/.test(rawCurr) || /[\uf0df\uf0e0←→]/.test(rawCurr) || /\b1\s+2\s+3\b/.test(rawCurr));
 
         if (isFloatingAnnotation) {
-            // Build position mapping between rawNext (original) and its compressed counterpart
-            const posMap = {};
-            const compChars = [];
-            let inSpaces = false;
-            for (let origIdx = 0; origIdx < rawNext.length; origIdx++) {
-                const char = rawNext[origIdx];
-                if (char === ' ') {
-                    if (!inSpaces) {
-                        compChars.push(' ');
-                        inSpaces = true;
-                    }
-                } else {
-                    inSpaces = false;
-                    compChars.push(char);
-                }
-                posMap[origIdx] = compChars.length - 1;
+            // Measure-aware alignment: find bar boundaries in original vs compressed chord line
+            const delimRegex = /(\|{1,2}:?|:?\|{1,2})/g;
+            const delims = [];
+            let dm;
+            while ((dm = delimRegex.exec(rawNext)) !== null) {
+                delims.push({ text: dm[0], start: dm.index });
             }
-            const compNextRaw = compChars.join('');
 
-            // Remap tokens in rawCurr so they stay anchored directly above their intended measure positions
+            // Calculate compressed barline coordinates
+            const parts = rawNext.split(/(\|{1,2}:?|:?\|{1,2})/g);
+            const compParts = [];
+            const compBarStarts = [];
+            let currLen = 0;
+            for (const p of parts) {
+                if (/^(\|{1,2}:?|:?\|{1,2})$/.test(p)) {
+                    compBarStarts.push(currLen);
+                    compParts.push(p);
+                    currLen += p.length;
+                } else {
+                    const compressedText = p.replace(/ {2,}/g, ' ');
+                    compParts.push(compressedText);
+                    currLen += compressedText.length;
+                }
+            }
+            const compNextRaw = compParts.join('');
+            const origBarStarts = delims.map(d => d.start);
+
+            // Remap tokens in rawCurr so they stay measure-aware and locked above target bars
             const cleanedCurr = rawCurr.replace(/\uf0df/g, '←').replace(/\uf0e0/g, '→');
             const tokenRegex = /\S+/g;
             let m;
@@ -1549,14 +1557,20 @@ function compressMeasureWhitespaceFancy(html, isFancy) {
                 const compTopArr = new Array(compNextRaw.length).fill(' ');
                 let currCursor = 0;
                 for (const tok of tokens) {
+                    let targetMeasureIdx = -1;
+                    for (let idx = 0; idx < origBarStarts.length; idx++) {
+                        if (tok.start >= origBarStarts[idx]) {
+                            targetMeasureIdx = idx;
+                        } else {
+                            break;
+                        }
+                    }
+
                     let targetPos;
-                    if (tok.start in posMap) {
-                        targetPos = posMap[tok.start];
-                    } else if (tok.start >= rawNext.length) {
-                        targetPos = compNextRaw.length + (tok.start - rawNext.length);
+                    if (targetMeasureIdx >= 0 && targetMeasureIdx < compBarStarts.length) {
+                        targetPos = compBarStarts[targetMeasureIdx] + 1;
                     } else {
-                        const prevKeys = Object.keys(posMap).map(Number).filter(k => k <= tok.start);
-                        targetPos = prevKeys.length > 0 ? posMap[Math.max(...prevKeys)] : 0;
+                        targetPos = tok.start;
                     }
 
                     if (targetPos < currCursor) {

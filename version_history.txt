@@ -376,5 +376,15 @@ v3.43 - Synchronized Proportional Alignment for Floating Annotations (Nov 05, 20
     keeping every time-signature and arrow anchored directly over its intended target measure.
   * Replaces legacy Wingdings private-use characters (`\uf0df`, `\uf0e0`) with universal Unicode arrows.
 - Incremented cache buster to v=1.43.
+
+v3.44 - Measure-Aware Anchor Locking for Meter Shifts & Voltas (Nov 05, 2026)
+--------------------------------------------------------------------------------
+- Upgraded floating annotation alignment from raw character re-spacing to measure-aware indexing:
+  * Solved issues in songs like "Nothing Rings As Brightly", where `1/4  2/4` markers were
+    placed in varying character columns across verses in Word (e.g. col 19 in Verse 1 vs col 42 in Verse 3).
+  * Automatically detects which musical measure (`| ... |`) each annotation belongs to and anchors
+    it directly to the compressed barline coordinates of that specific measure.
+  * Preserves symmetric measure counts between 1st and 2nd repeat volta brackets (`1.____ 2.____`).
+- Incremented cache buster to v=1.44.
 ================================================================================
 
