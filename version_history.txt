@@ -353,5 +353,17 @@ v3.41 - Persistent Mobile View Mode (Nov 02, 2026)
 - Persisted active mobile pane mode in `localStorage` so preferred layout sticks across sessions
   without resetting to "Both" on every song selection.
 - Incremented cache buster to v=1.41.
+
+v3.42 - Expandable Chart Toolbar Drawer with Treble Clef Pill (Nov 05, 2026)
+--------------------------------------------------------------------------------
+- Reduced toolbar ink and clutter by collapsing all transposition, accidental, fancy,
+  and font sizing controls into a sleek, minimal trigger pill:
+  * When closed: displays a musical Treble Clef pill (`[ 𝄞 Orig ▼ ]` or `[ 𝄞 +2 ▼ ]`).
+  * On tap/click: smoothly slides open the complete tool drawer inline without shifting the chart.
+  * Clearly organized into 2 visual sub-clusters with a subtle vertical divider:
+    Key controls (`[ ◀ Orig ▶ ] [ ♯/♭ ]`) | View controls (`[ ¶ ] [ A− A+ ]`) + close (`✕`).
+  * Auto-collapses on outside click or re-tap.
+  * Real-time chord transposition updates immediately as `[▲] [▼]` steppers are clicked.
+- Incremented cache buster to v=1.42.
 ================================================================================
 

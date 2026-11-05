@@ -502,7 +502,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.41";
+const APP_BUILD_VERSION = "v1.42";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1749,34 +1749,50 @@ function transposeChartHtml(html, semitones) {
 }
 
 function updateTransposeUI() {
+    const container = document.getElementById("chart-tools-container");
+    const pill = document.getElementById("chart-tools-pill");
+    const pillKeyBadge = document.getElementById("chart-pill-key-badge");
     const controls = document.getElementById("transpose-controls");
-    const fontControls = document.getElementById("chart-font-controls");
     const label = document.getElementById("transpose-semitones");
     const accidentalBtn = document.getElementById("transpose-accidental-btn");
     const fancyBtn = document.getElementById("transpose-fancy-btn");
-    if (!controls || !label) return;
+    const divider = document.querySelector(".chart-tools-divider");
+    if (!container || !label) return;
 
-    if (!rawCurrentDocxHtml) {
-        controls.style.display = "none";
-        if (fontControls) {
-            // Check if active chart is a docx (e.g. Numbers chart or Letters chart)
-            const hasDocx = document.querySelector("#chart-container .docx-content");
-            fontControls.style.display = hasDocx ? "inline-flex" : "none";
-        }
+    // Check if current chart is DOCX / flexible notation
+    const hasDocx = Boolean(rawCurrentDocxHtml || document.querySelector("#chart-container .docx-content"));
+    if (!hasDocx) {
+        container.style.display = "none";
+        container.classList.remove("expanded");
         return;
     }
 
-    controls.style.display = "inline-flex";
-    if (fontControls) fontControls.style.display = "inline-flex";
-    if (currentTransposeSemitones === 0) {
-        label.innerText = "Orig";
-        label.classList.remove("active");
-        label.title = "Original key (click to reset)";
+    container.style.display = "inline-flex";
+
+    // If Numbers chart or un-transposable docx, hide transpose group but show view group
+    if (!rawCurrentDocxHtml) {
+        if (controls) controls.style.display = "none";
+        if (divider) divider.style.display = "none";
+        if (pillKeyBadge) pillKeyBadge.innerText = "View";
+        if (pill) pill.classList.remove("active");
     } else {
-        const sign = currentTransposeSemitones > 0 ? `+${currentTransposeSemitones}` : `${currentTransposeSemitones}`;
-        label.innerText = sign;
-        label.classList.add("active");
-        label.title = `Transposed ${sign} semitones (click to reset to original)`;
+        if (controls) controls.style.display = "inline-flex";
+        if (divider) divider.style.display = "block";
+
+        if (currentTransposeSemitones === 0) {
+            label.innerText = "Orig";
+            label.classList.remove("active");
+            label.title = "Original key (click to reset)";
+            if (pillKeyBadge) pillKeyBadge.innerText = "Orig";
+            if (pill) pill.classList.remove("active");
+        } else {
+            const sign = currentTransposeSemitones > 0 ? `+${currentTransposeSemitones}` : `${currentTransposeSemitones}`;
+            label.innerText = sign;
+            label.classList.add("active");
+            label.title = `Transposed ${sign} semitones (click to reset to original)`;
+            if (pillKeyBadge) pillKeyBadge.innerText = sign;
+            if (pill) pill.classList.add("active");
+        }
     }
 
     if (accidentalBtn) {
@@ -1961,6 +1977,32 @@ function toggleAccidentalMode() {
 }
 
 function setupTransposeControls() {
+    const toolsContainer = document.getElementById("chart-tools-container");
+    const toolsPill = document.getElementById("chart-tools-pill");
+    const toolsCloseBtn = document.getElementById("chart-tools-close-btn");
+    const toolsDrawer = document.getElementById("chart-tools-drawer");
+
+    if (toolsPill && toolsContainer) {
+        toolsPill.onclick = (e) => {
+            e.stopPropagation();
+            toolsContainer.classList.add("expanded");
+        };
+    }
+    if (toolsCloseBtn && toolsContainer) {
+        toolsCloseBtn.onclick = (e) => {
+            e.stopPropagation();
+            toolsContainer.classList.remove("expanded");
+        };
+    }
+    // Clicking anywhere outside collapses the drawer
+    document.addEventListener("click", (e) => {
+        if (toolsContainer && toolsContainer.classList.contains("expanded")) {
+            if (!toolsContainer.contains(e.target)) {
+                toolsContainer.classList.remove("expanded");
+            }
+        }
+    });
+
     const downBtn = document.getElementById("transpose-down-btn");
     const upBtn = document.getElementById("transpose-up-btn");
     const resetBtn = document.getElementById("transpose-semitones");

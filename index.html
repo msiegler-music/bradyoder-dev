@@ -474,31 +474,140 @@
             max-width: 170px;
         }
 
-        /* Transpose Controls */
+        /* Expandable Chart Controls Container */
+        .chart-tools-container {
+            position: relative;
+            display: inline-flex;
+            align-items: center;
+        }
+        .chart-tools-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 4px;
+            padding: 2px 8px;
+            height: 26px;
+            background: #ffffff;
+            border: 1px solid #d4d4d8;
+            border-radius: 13px;
+            font-size: 0.78rem;
+            font-weight: 600;
+            color: #3f3f46;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.15s ease;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
+        }
+        .chart-tools-pill:hover {
+            border-color: #0284c7;
+            color: #0284c7;
+            background: #f0f9ff;
+        }
+        .chart-tools-pill.active {
+            background: #f0fdfa;
+            border-color: #5eead4;
+            color: #0d9488;
+        }
+        .chart-tools-pill .pill-clef {
+            font-size: 0.95rem;
+            line-height: 1;
+            color: #0284c7;
+        }
+        .chart-tools-pill.active .pill-clef {
+            color: #0d9488;
+        }
+        .chart-tools-pill .pill-badge {
+            font-size: 0.74rem;
+            font-weight: 700;
+            color: #52525b;
+        }
+        .chart-tools-pill.active .pill-badge {
+            color: #0f766e;
+        }
+        .chart-tools-pill .pill-caret {
+            font-size: 0.6rem;
+            color: #a1a1aa;
+            margin-left: 1px;
+            transition: transform 0.2s ease;
+        }
+        .chart-tools-container.expanded .chart-tools-pill .pill-caret {
+            transform: rotate(180deg);
+        }
+
+        /* Slide-out Drawer / Strip */
+        .chart-tools-drawer {
+            display: none;
+            align-items: center;
+            gap: 4px;
+            background: #ffffff;
+            border: 1px solid #cbd5e1;
+            border-radius: 6px;
+            padding: 2px 4px;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+            user-select: none;
+        }
+        .chart-tools-container.expanded .chart-tools-drawer {
+            display: inline-flex;
+        }
+        .chart-tools-container.expanded .chart-tools-pill {
+            display: none;
+        }
+
+        /* Group styling with subtle divider */
+        .chart-tool-group {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+        }
+        .chart-tools-divider {
+            width: 1px;
+            height: 16px;
+            background: #cbd5e1;
+            margin: 0 3px;
+        }
+        .chart-tool-close-btn {
+            background: none;
+            border: none;
+            color: #94a3b8;
+            font-size: 0.72rem;
+            font-weight: 700;
+            padding: 2px 5px;
+            cursor: pointer;
+            border-radius: 3px;
+            line-height: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin-left: 2px;
+        }
+        .chart-tool-close-btn:hover {
+            color: #0f172a;
+            background: #f1f5f9;
+        }
+
+        /* Transpose Control Elements inside drawer */
         #transpose-controls {
             display: inline-flex;
             align-items: center;
             gap: 2px;
-            background: #ffffff;
-            border: 1px solid #d4d4d8;
-            border-radius: 6px;
-            padding: 2px;
-            margin-right: 6px;
-            box-shadow: 0 1px 2px rgba(0,0,0,0.04);
         }
         #transpose-semitones {
             font-size: 0.76rem;
             font-weight: 700;
             color: #0284c7;
-            min-width: 36px;
+            min-width: 28px;
             text-align: center;
             cursor: pointer;
-            padding: 4px 6px;
-            border-radius: 4px;
+            padding: 2px 5px;
+            height: 20px;
+            box-sizing: border-box;
+            border-radius: 3px;
             user-select: none;
             background: #f8fafc;
-            border: 1px solid #e2e8f0;
+            border: 1px solid #cbd5e1;
             transition: all 0.15s ease;
+            display: flex;
+            align-items: center;
+            justify-content: center;
         }
         #transpose-semitones:hover {
             background: #f0f9ff;
@@ -537,15 +646,19 @@
             border-color: #d4d4d8;
         }
         .transpose-accidental-toggle {
-            font-size: 0.75rem;
+            font-size: 0.72rem;
             font-weight: 700;
-            color: #71717a;
-            border: 1px solid #e2e8f0;
-            border-radius: 4px;
-            padding: 3px 6px;
-            margin: 0 2px;
+            color: #64748b;
+            border: 1px solid #cbd5e1;
+            border-radius: 3px;
+            padding: 0 5px;
+            height: 20px;
+            margin: 0 1px;
             cursor: pointer;
             background: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition: all 0.15s ease;
         }
         .transpose-accidental-toggle:hover {
@@ -554,15 +667,19 @@
             border-color: #bae6fd;
         }
         .transpose-fancy-toggle {
-            font-size: 0.82rem;
+            font-size: 0.78rem;
             font-weight: 700;
-            color: #71717a;
-            border: 1px solid #e2e8f0;
-            border-radius: 4px;
-            padding: 3px 6px;
-            margin-left: 2px;
+            color: #64748b;
+            border: 1px solid #cbd5e1;
+            border-radius: 3px;
+            padding: 0 6px;
+            height: 20px;
+            margin: 0 1px;
             cursor: pointer;
             background: #f8fafc;
+            display: flex;
+            align-items: center;
+            justify-content: center;
             transition: all 0.15s ease;
             user-select: none;
         }
@@ -581,22 +698,24 @@
         .chart-font-stepper {
             display: inline-flex;
             align-items: center;
-            border: 1px solid #e2e8f0;
-            border-radius: 4px;
+            border: 1px solid #cbd5e1;
+            border-radius: 3px;
             background: #f8fafc;
-            padding: 1px;
-            margin-left: 2px;
+            height: 20px;
+            padding: 0 1px;
+            margin: 0 1px;
             user-select: none;
         }
         .chart-font-btn {
             background: transparent;
             border: none;
-            padding: 2px 5px;
-            font-size: 0.72rem;
+            padding: 0 4px;
+            height: 18px;
+            font-size: 0.68rem;
             font-weight: 700;
-            color: #52525b;
+            color: #475569;
             cursor: pointer;
-            border-radius: 3px;
+            border-radius: 2px;
             line-height: 1;
             display: flex;
             align-items: center;
@@ -1280,7 +1399,7 @@
                     <div class="settings-version-info">
                         <span>App Version:</span>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <span id="app-version-badge" class="settings-version-tag">v1.41</span>
+                            <span id="app-version-badge" class="settings-version-tag">v1.42</span>
                             <button type="button" id="force-reload-btn" class="settings-reload-btn" title="Force reload (clear cache)">🔄</button>
                         </div>
                     </div>
@@ -1297,20 +1416,44 @@
                         <span id="chart-tuning-meta" style="display: none;"></span>
                     </div>
                     <div style="display: flex; align-items: center; gap: 8px;">
-                        <!-- Transpose Control Bar: [Orig] [+/-] [#/b] [¶] -->
-                        <div id="transpose-controls" style="display: none;" title="Transpose chord chart">
-                            <span id="transpose-semitones" title="Click to reset transposition">Orig</span>
-                            <div class="transpose-pitch-stepper">
-                                <button type="button" class="transpose-step-btn" id="transpose-up-btn" title="Transpose up 1 semitone (+)">▲</button>
-                                <button type="button" class="transpose-step-btn" id="transpose-down-btn" title="Transpose down 1 semitone (-)">▼</button>
+                        <!-- Expandable Chart Controls Pill & Slide-Out Drawer -->
+                        <div class="chart-tools-container" id="chart-tools-container" style="display: none;">
+                            <!-- Collapsed Treble Clef Pill -->
+                            <button type="button" class="chart-tools-pill" id="chart-tools-pill" title="Chart settings (key & view)">
+                                <span class="pill-clef">𝄞</span>
+                                <span class="pill-badge" id="chart-pill-key-badge">Orig</span>
+                                <span class="pill-caret">▼</span>
+                            </button>
+
+                            <!-- Slide-out Drawer with 2 groups: [Key Controls] | [View Controls] -->
+                            <div class="chart-tools-drawer" id="chart-tools-drawer">
+                                <!-- Group 1: Key / Transposition Controls -->
+                                <div class="chart-tool-group" id="transpose-controls" title="Transpose chords">
+                                    <span id="transpose-semitones" title="Click to reset transposition">Orig</span>
+                                    <div class="transpose-pitch-stepper">
+                                        <button type="button" class="transpose-step-btn" id="transpose-up-btn" title="Transpose up 1 semitone (+)">▲</button>
+                                        <button type="button" class="transpose-step-btn" id="transpose-down-btn" title="Transpose down 1 semitone (-)">▼</button>
+                                    </div>
+                                    <button type="button" class="transpose-accidental-toggle" id="transpose-accidental-btn" title="Toggle enharmonic spellings (Sharps # / Flats ♭)">♯</button>
+                                </div>
+
+                                <!-- Subtle Divider -->
+                                <div class="chart-tools-divider"></div>
+
+                                <!-- Group 2: View / Typesetting Controls -->
+                                <div class="chart-tool-group" id="chart-view-controls">
+                                    <button type="button" class="transpose-fancy-toggle" id="transpose-fancy-btn" title="Toggle fancy formatting (subscript & superscript extensions)">¶</button>
+                                    <div class="chart-font-stepper" id="chart-font-controls" title="Adjust chart text size">
+                                        <button type="button" class="chart-font-btn" id="chart-font-decrease-btn" title="Decrease font size (A-)">A−</button>
+                                        <button type="button" class="chart-font-btn" id="chart-font-increase-btn" title="Increase font size (A+)">A+</button>
+                                    </div>
+                                </div>
+
+                                <!-- Close Button -->
+                                <button type="button" class="chart-tool-close-btn" id="chart-tools-close-btn" title="Close chart controls">✕</button>
                             </div>
-                            <button type="button" class="transpose-accidental-toggle" id="transpose-accidental-btn" title="Toggle enharmonic spellings (Sharps # / Flats ♭)">♯</button>
-                            <button type="button" class="transpose-fancy-toggle" id="transpose-fancy-btn" title="Toggle fancy formatting (subscript & superscript extensions)">¶</button>
                         </div>
-                        <div class="chart-font-stepper" id="chart-font-controls" style="display: none;" title="Adjust chart text size">
-                            <button type="button" class="chart-font-btn" id="chart-font-decrease-btn" title="Decrease font size (A-)">A−</button>
-                            <button type="button" class="chart-font-btn" id="chart-font-increase-btn" title="Increase font size (A+)">A+</button>
-                        </div>
+
                         <div id="version-selector" style="display: none;">
                             <!-- Dynamically populated alternate version tabs -->
                         </div>
@@ -1354,6 +1497,6 @@
     </div>
 
     <!-- Application Script -->
-    <script src="app.js?v=1.41"></script>
+    <script src="app.js?v=1.42"></script>
 </body>
 </html>
