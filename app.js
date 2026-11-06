@@ -185,7 +185,17 @@ function setupSettingsPopover() {
             reloadBtn.innerText = "⏳";
             reloadBtn.style.animation = "spin 0.6s linear infinite";
 
-            // 1. Purge any CacheStorage entries (ServiceWorker / Browser caches)
+            // 1. Unregister any active Service Workers
+            if (typeof navigator !== "undefined" && "serviceWorker" in navigator) {
+                try {
+                    const registrations = await navigator.serviceWorker.getRegistrations();
+                    await Promise.all(registrations.map(r => r.unregister()));
+                } catch (err) {
+                    console.warn("Could not unregister service workers:", err);
+                }
+            }
+
+            // 2. Purge any CacheStorage entries (ServiceWorker / Browser caches)
             if (typeof window !== "undefined" && "caches" in window) {
                 try {
                     const keys = await window.caches.keys();
@@ -195,15 +205,29 @@ function setupSettingsPopover() {
                 }
             }
 
-            // 2. Clear sessionStorage
+            // 3. Clear sessionStorage
             try {
                 sessionStorage.clear();
             } catch (err) {}
 
-            // 3. Force cache-busting reload by appending fresh timestamp and replacing state
+            // 4. Force browser network re-fetching of shell assets bypassing HTTP cache
+            const cacheBustNonce = Date.now();
+            try {
+                await Promise.all([
+                    fetch(`index.html?_v=${cacheBustNonce}`, { cache: "reload" }).catch(() => null),
+                    fetch(`app.js?v=${APP_BUILD_VERSION}&_v=${cacheBustNonce}`, { cache: "reload" }).catch(() => null)
+                ]);
+            } catch (err) {}
+
+            // 5. Briefly show checkmark confirmation before reloading
+            reloadBtn.style.animation = "none";
+            reloadBtn.innerText = "✓";
+            await new Promise(r => setTimeout(r, 200));
+
+            // 6. Hard navigate with fresh cache-busting timestamp
             const url = new URL(window.location.href);
-            url.searchParams.set("_v", Date.now());
-            window.location.replace(url.toString());
+            url.searchParams.set("_v", cacheBustNonce.toString());
+            window.location.href = url.toString();
         };
     }
 
@@ -216,6 +240,41 @@ function setupSettingsPopover() {
             openRevisionHistoryModal();
         };
     }
+
+    // 5. Initialize environment switch link (Dev <-> Prod)
+    updateEnvironmentSwitchLink();
+}
+
+// Dynamically updates the "Switch to Prod / Dev" link in Settings, carrying over active song
+function updateEnvironmentSwitchLink() {
+    const switchLink = document.getElementById("env-switch-link");
+    if (!switchLink) return;
+
+    const isDev = window.location.hostname === "localhost" || 
+                  window.location.hostname === "127.0.0.1" || 
+                  window.location.pathname.includes("bradyoder-dev") ||
+                  window.location.hostname.includes("lhr.life");
+
+    const prodBase = "https://msiegler-music.github.io/bradyoder/";
+    const devBase = "https://msiegler-music.github.io/bradyoder-dev/";
+
+    const targetBase = isDev ? prodBase : devBase;
+    const targetLabel = isDev ? "Switch to Prod ↗" : "Switch to Dev ↗";
+    const targetTitle = isDev ? "Switch to live Production build" : "Switch to live Development build";
+
+    const targetUrl = new URL(targetBase);
+
+    // Carry over current active song if selected
+    if (currentActiveSong) {
+        const slug = getSongSlug(currentActiveSong);
+        if (slug) {
+            targetUrl.searchParams.set("song", slug);
+        }
+    }
+
+    switchLink.innerText = targetLabel;
+    switchLink.title = targetTitle;
+    switchLink.href = targetUrl.toString();
 }
 
 // ----------------------------------------------------
@@ -502,7 +561,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.46";
+const APP_BUILD_VERSION = "v1.47";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -986,6 +1045,7 @@ function renderAudio(song, forcedSource = null) {
 function selectSong(song, options = {}) {
     currentActiveSong = song;
     updateActiveSongHighlight();
+    updateEnvironmentSwitchLink();
     const requestedChartIndex = typeof options.chartIndex === "number" ? options.chartIndex : 0;
     currentChartIndex = requestedChartIndex;
 

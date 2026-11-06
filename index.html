@@ -336,6 +336,27 @@
             color: #0284c7;
             border-color: #bae6fd;
         }
+        .settings-env-switch-btn {
+            font-size: 0.72rem;
+            font-weight: 600;
+            color: #0284c7;
+            text-decoration: none;
+            background: rgba(2, 132, 199, 0.08);
+            border: 1px solid rgba(2, 132, 199, 0.2);
+            padding: 2px 7px;
+            border-radius: 4px;
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            cursor: pointer;
+            transition: all 0.15s ease;
+        }
+        .settings-env-switch-btn:hover {
+            background: rgba(2, 132, 199, 0.15);
+            border-color: #0284c7;
+            color: #0369a1;
+            transform: translateY(-1px);
+        }
         #active-song-title {
             margin: 0;
             font-size: 1.35rem;
@@ -827,8 +848,7 @@
 
         /* Styling for Mammoth DOCX semantic HTML output */
         .docx-content {
-            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
-            font-size: calc(0.95rem * var(--chart-font-scale));
+            font-size: calc(1rem * var(--chart-font-scale));
             line-height: 1.5;
             color: #27272a;
         }
@@ -1400,9 +1420,13 @@
                     <div class="settings-version-info">
                         <span>App Version:</span>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <span id="app-version-badge" class="settings-version-tag">v1.46</span>
+                            <span id="app-version-badge" class="settings-version-tag">v1.47</span>
                             <button type="button" id="force-reload-btn" class="settings-reload-btn" title="Force reload (clear cache)">🔄</button>
                         </div>
+                    </div>
+                    <div class="settings-version-info" style="margin-top: 8px;">
+                        <span>Environment:</span>
+                        <a id="env-switch-link" href="#" class="settings-env-switch-btn" title="Switch environment">Switch to Prod ↗</a>
                     </div>
                 </div>
             </div>
@@ -1498,6 +1522,6 @@
     </div>
 
     <!-- Application Script -->
-    <script src="app.js?v=1.46"></script>
+    <script src="app.js?v=1.47"></script>
 </body>
 </html>

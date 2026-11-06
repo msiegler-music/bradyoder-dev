@@ -411,5 +411,18 @@ v3.46 - Monospace Musical Lead-Sheet Typography & Pixel-Perfect Alignment (Nov 0
 - Calibrated trailing volta annotations (`2/4 2/2`) to lock directly over post-repeat exit measures (`G ||`).
 - Snap-anchored multi-token syncopation beat hits (`1-2 &-3 4`) to multi-chord push measures (`Bb / F / G | G ||`).
 - Hardened script cache busting tag in `index.html` to `app.js?v=1.46`.
+
+v3.47 - Dev/Prod Environment Switcher & Bulletproof Force-Reload (Nov 06, 2026)
+--------------------------------------------------------------------------------
+- Added minimal, clutter-free Environment Switcher link in Settings under App Version:
+  * Displays "Switch to Prod ↗" on dev / local, and "Switch to Dev ↗" on production.
+  * Preserves active song context (`?song=<slug>`) so switching environments immediately compares
+    the exact same chart on both versions.
+- Hardened `#force-reload-btn` (🔄) against persistent mobile browser caching:
+  * Automatically unregisters active Service Workers via `navigator.serviceWorker.getRegistrations()`.
+  * Pre-fetches `index.html` and `app.js` with novel timestamps and `{ cache: "reload" }` to force
+    the browser's HTTP disk cache to refresh before navigation.
+  * Provides animated spinning feedback (`⏳`) resolving to checkmark (`✓`) prior to page reload.
+- Incremented cache buster to v=1.47.
 ================================================================================
 
