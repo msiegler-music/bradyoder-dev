@@ -400,5 +400,16 @@ v3.45 - Level-Harder Measure Alignment: Asymmetric Voltas, Rhythmic Hits & Sub-C
   * Sub-Chord Vocals & Dialogue: Extended measure-aware coordinate mapping to lines sitting underneath
     chords (e.g. Chorus 4 backing vocals and "g.b.w.p..." tag lines), locking words under their chords.
 - Incremented cache buster to v=1.45.
+
+v3.46 - Monospace Musical Lead-Sheet Typography & Pixel-Perfect Alignment (Nov 06, 2026)
+--------------------------------------------------------------------------------
+- Resolved proportional font spacing drift across chord charts:
+  * Established modern monospace lead-sheet typography (`ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, monospace`)
+    for `.docx-content`, guaranteeing 1-to-1 character-to-pixel parity so spaces `' '` match the exact width of chord letters.
+  * Eliminates the proportional font shrinkage where 30 space characters only spanned 120px while chord letters spanned 300px.
+- Integrated orphan opening meters directly into section headers (`VERSE 1: (2/2)`) instead of leaving isolated single-token lines.
+- Calibrated trailing volta annotations (`2/4 2/2`) to lock directly over post-repeat exit measures (`G ||`).
+- Snap-anchored multi-token syncopation beat hits (`1-2 &-3 4`) to multi-chord push measures (`Bb / F / G | G ||`).
+- Hardened script cache busting tag in `index.html` to `app.js?v=1.46`.
 ================================================================================
 

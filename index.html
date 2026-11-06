@@ -827,7 +827,8 @@
 
         /* Styling for Mammoth DOCX semantic HTML output */
         .docx-content {
-            font-size: calc(1rem * var(--chart-font-scale));
+            font-family: ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, "Liberation Mono", "Courier New", monospace;
+            font-size: calc(0.95rem * var(--chart-font-scale));
             line-height: 1.5;
             color: #27272a;
         }
@@ -1399,7 +1400,7 @@
                     <div class="settings-version-info">
                         <span>App Version:</span>
                         <div style="display: flex; align-items: center; gap: 6px;">
-                            <span id="app-version-badge" class="settings-version-tag">v1.45</span>
+                            <span id="app-version-badge" class="settings-version-tag">v1.46</span>
                             <button type="button" id="force-reload-btn" class="settings-reload-btn" title="Force reload (clear cache)">🔄</button>
                         </div>
                     </div>
@@ -1497,6 +1498,6 @@
     </div>
 
     <!-- Application Script -->
-    <script src="app.js?v=1.44"></script>
+    <script src="app.js?v=1.46"></script>
 </body>
 </html>

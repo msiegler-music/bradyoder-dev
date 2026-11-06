@@ -502,7 +502,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.45";
+const APP_BUILD_VERSION = "v1.46";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1572,6 +1572,17 @@ function compressMeasureWhitespaceFancy(html, isFancy) {
                     }
 
                     let targetPos;
+                    // Special adjustment for rhythmic push tokens (e.g. 1-2 &-3 4) near measure boundaries:
+                    // If tok.start lands on the final turnaround bar (e.g. | G ||), but the preceding measure
+                    // contains multi-chord pushes (e.g. | Bb / F / G ), and multiple tokens exist,
+                    // snap the starting token to the push measure so the full subdivision fits over the push chords!
+                    if (targetMeasureIdx > 0 && targetMeasureIdx === origBarStarts.length - 2) {
+                        const prevBarText = rawNext.slice(origBarStarts[targetMeasureIdx - 1], origBarStarts[targetMeasureIdx]);
+                        if (prevBarText.includes('/') && tokens.length >= 2 && tok === tokens[0]) {
+                            targetMeasureIdx = targetMeasureIdx - 1;
+                        }
+                    }
+
                     if (targetMeasureIdx >= 0 && targetMeasureIdx < compBarStarts.length) {
                         targetPos = compBarStarts[targetMeasureIdx] + 1;
                     } else {
@@ -1732,8 +1743,19 @@ function formatVoltaEndings(html, isFancy) {
 
             if (targetIdx !== -1) {
                 // Extract prefix before 1.___ and suffix after 2.___
-                const prefix = txtCurr.slice(0, mHdr.index).trim();
+                let prefix = txtCurr.slice(0, mHdr.index).trim();
                 const suffix = txtCurr.slice(mHdr.index + mHdr[0].length).trim();
+
+                // If prefix is an orphan opening meter like 2/2 and next line is a section label (VERSE, INTRO, CHORUS, BRIDGE):
+                // Merge it cleanly into the section label to eliminate the orphan 1-token line at the top
+                if (prefix && /^[1-9]\/[1-9]$/.test(prefix) && i + 1 < targetIdx) {
+                    const pNextLine = paras[i + 1];
+                    const txtNextLine = pNextLine.replace(/<[^>]+>/g, '');
+                    if (/^(?:VERSE|INTRO|CHORUS|BRIDGE)\b/i.test(txtNextLine)) {
+                        paras[i + 1] = pNextLine.replace(/^(<p[^>]*>\s*(?:VERSE|INTRO|CHORUS|BRIDGE)[^:]*:)/i, `$1 (${prefix})`);
+                        prefix = '';
+                    }
+                }
 
                 if (prefix) {
                     outParas.push(`<p>${prefix}</p>`);
@@ -1808,7 +1830,9 @@ function formatVoltaEndings(html, isFancy) {
                     const v2 = `<span class="volta-box volta-2"><span class="volta-num">2.</span><span class="volta-content">${ending2Content}</span></span>`;
 
                     if (suffix && (/[1-9]\/[1-9]/.test(suffix) || /[\uf0df\uf0e0←→]/.test(suffix))) {
-                        const trailingAnnotP = ' '.repeat(mHdr.index + mHdr[0].length + (trailingMatch ? trailingMatch.index : 0)) + suffix;
+                        // Position suffix directly above trailingChords
+                        const plainEnding = mainBody + (mainBody.endsWith('|') ? '' : '|') + `1. ${ending1Content}:|| 2. ${ending2Content}`;
+                        const trailingAnnotP = ' '.repeat(Math.max(1, plainEnding.length + 1)) + suffix;
                         outParas.push(`<p>${trailingAnnotP}</p>`);
                     }
 
