@@ -424,5 +424,22 @@ v3.47 - Dev/Prod Environment Switcher & Bulletproof Force-Reload (Nov 06, 2026)
     the browser's HTTP disk cache to refresh before navigation.
   * Provides animated spinning feedback (`⏳`) resolving to checkmark (`✓`) prior to page reload.
 - Incremented cache buster to v=1.47.
+
+v3.48 - Calibrated Asymmetric Voltas, Rhythmic Push Snapping & Exit Turnarounds (Nov 06, 2026)
+--------------------------------------------------------------------------------
+- Perfected Asymmetric Volta repeat brackets and trailing meter alignments:
+  * Ratio-based measure count detection across unequal repeat endings: Ending 1 in Better With Practice
+    expands across all 4 measures (`Db | Cm | Bb | Bb :||`) while Ending 2 spans 2 measures (`Eb | Bbm |`).
+  * Turnaround measure isolation: Post-repeat exit measures (`|G ||`) remain cleanly outside Volta 2.
+  * Trailing meter shift locking: Accurately aligns `2/4 2/2` directly over the exit measure (`|G ||`)
+    and positions `1/2 2/2` above Volta 2 (`[2. G / ||]`).
+  * Opening meter consolidation: Merges stranded opening time signatures cleanly into section headers
+    (`VERSE 1: (2/2)`) rather than rendering isolated single-token lines.
+  * Section header preservation: Prevents section headers (`VERSE 2:`, `BRIDGE: 3/4!!`) from splitting or
+    drifting across lines when followed by rhythmic subdivisions.
+  * Syncopated subdivision alignment: Locks `1-2 &-3 4` precisely over push measures (`Bb / F / G | G ||`).
+  * Phrase-aware sub-chord lyrics: Keeps multi-word vocal cues intact across measure boundaries
+    in Chorus 4 and TAG lines.
+- Incremented cache buster to v=1.48.
 ================================================================================
 

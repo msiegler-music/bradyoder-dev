@@ -561,7 +561,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.47";
+const APP_BUILD_VERSION = "v1.48";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1565,11 +1565,23 @@ function compressMeasureWhitespaceFancy(html, isFancy) {
     const outParas = [];
     let i = 0;
     while (i < paras.length) {
-        const currP = paras[i];
-        const nextP = (i + 1 < paras.length) ? paras[i + 1] : null;
+        let currP = paras[i];
+        let nextP = (i + 1 < paras.length) ? paras[i + 1] : null;
 
-        const rawCurr = currP.replace(/<[^>]+>/g, '');
-        const rawNext = nextP ? nextP.replace(/<[^>]+>/g, '') : '';
+        let rawCurr = currP.replace(/<[^>]+>/g, '');
+        let rawNext = nextP ? nextP.replace(/<[^>]+>/g, '') : '';
+
+        // Check if currP starts with a section label (e.g. 'VERSE 2:') but also has floating annotations
+        const secLabelMatch = rawCurr.match(/^\s*(VERSE\s*[0-9]*|CHORUS\s*[0-9]*|BRIDGE|INTRO|OUTRO|TAG)\s*:\s*/i);
+        if (secLabelMatch && !rawCurr.includes('|') && !/(?:\b|\s)1\.[_\s]+/.test(rawCurr)) {
+            const afterLabel = rawCurr.slice(secLabelMatch[0].length);
+            if ((/\b[1-9](?:-[0-9&]+|\s+[0-9&]+)+/.test(afterLabel) || /\b&-[0-9]+/.test(afterLabel)) && nextP && rawNext.includes('|')) {
+                outParas.push(`<p>${secLabelMatch[0].trim()}</p>`);
+                const padSpaces = ' '.repeat(secLabelMatch[0].length);
+                currP = `<p>${padSpaces}${afterLabel}</p>`;
+                rawCurr = padSpaces + afterLabel;
+            }
+        }
 
         // Check if currP is a floating annotation line indexing nextP:
         // (has spaces before meter like 1/2, 2/2, 3/4, or arrows ←, or beat counts 1 2 3, 1-2 &-3 4, above a chord line with '|')
@@ -1620,8 +1632,23 @@ function compressMeasureWhitespaceFancy(html, isFancy) {
 
             if (tokens.length > 0) {
                 const compTopArr = new Array(compNextRaw.length).fill(' ');
-                let currCursor = 0;
-                for (const tok of tokens) {
+                let prevTargetPos = -1;
+
+                // Check if tokens are rhythmic hits (e.g. 1-2 &-3 4) targeting a multi-chord push measure
+                const isRhythmHits = tokens.some(t => /\b[1-9](?:-[0-9&]+|\s+[0-9&]+)+/.test(t.text) || /\b&-[0-9]+/.test(t.text));
+                let pushMeasureIdx = -1;
+                if (isRhythmHits) {
+                    for (let b = 0; b < origBarStarts.length - 1; b++) {
+                        const mText = rawNext.slice(origBarStarts[b], origBarStarts[b + 1]);
+                        if ((mText.match(/\//g) || []).length >= 2) {
+                            pushMeasureIdx = b;
+                            break;
+                        }
+                    }
+                }
+
+                for (let tIdx = 0; tIdx < tokens.length; tIdx++) {
+                    const tok = tokens[tIdx];
                     let targetMeasureIdx = -1;
                     for (let idx = 0; idx < origBarStarts.length; idx++) {
                         if (tok.start >= origBarStarts[idx]) {
@@ -1631,26 +1658,35 @@ function compressMeasureWhitespaceFancy(html, isFancy) {
                         }
                     }
 
-                    let targetPos;
-                    // Special adjustment for rhythmic push tokens (e.g. 1-2 &-3 4) near measure boundaries:
-                    // If tok.start lands on the final turnaround bar (e.g. | G ||), but the preceding measure
-                    // contains multi-chord pushes (e.g. | Bb / F / G ), and multiple tokens exist,
-                    // snap the starting token to the push measure so the full subdivision fits over the push chords!
-                    if (targetMeasureIdx > 0 && targetMeasureIdx === origBarStarts.length - 2) {
-                        const prevBarText = rawNext.slice(origBarStarts[targetMeasureIdx - 1], origBarStarts[targetMeasureIdx]);
-                        if (prevBarText.includes('/') && tokens.length >= 2 && tok === tokens[0]) {
-                            targetMeasureIdx = targetMeasureIdx - 1;
-                        }
+                    if (isRhythmHits && pushMeasureIdx !== -1) {
+                        targetMeasureIdx = pushMeasureIdx;
                     }
 
+                    let targetPos;
                     if (targetMeasureIdx >= 0 && targetMeasureIdx < compBarStarts.length) {
-                        targetPos = compBarStarts[targetMeasureIdx] + 1;
+                        const mStart = compBarStarts[targetMeasureIdx];
+                        const mEnd = (targetMeasureIdx + 1 < compBarStarts.length) ? compBarStarts[targetMeasureIdx + 1] : compNextRaw.length;
+                        const mText = compNextRaw.slice(mStart, mEnd);
+
+                        // If measure contains multiple chords with '/', align tokens to chords
+                        const chordMatches = [];
+                        const cRegex = /[A-Ga-g][#b♭♯]?[^\s\/\|]*/g;
+                        let cm;
+                        while ((cm = cRegex.exec(mText)) !== null) {
+                            chordMatches.push(mStart + cm.index);
+                        }
+
+                        if (chordMatches.length >= tokens.length && tIdx < chordMatches.length) {
+                            targetPos = chordMatches[tIdx];
+                        } else {
+                            targetPos = mStart + 1 + tIdx * 5;
+                        }
                     } else {
                         targetPos = tok.start;
                     }
 
-                    if (targetPos < currCursor) {
-                        targetPos = currCursor;
+                    if (targetPos <= prevTargetPos) {
+                        targetPos = prevTargetPos + 1;
                     }
 
                     while (compTopArr.length < targetPos + tok.text.length) {
@@ -1661,7 +1697,7 @@ function compressMeasureWhitespaceFancy(html, isFancy) {
                         compTopArr[targetPos + j] = tok.text[j];
                     }
 
-                    currCursor = targetPos + tok.text.length + 1;
+                    prevTargetPos = targetPos + tok.text.length;
                 }
 
                 outParas.push(`<p>${compTopArr.join('').replace(/\s+$/, '')}</p>`);
@@ -1714,20 +1750,21 @@ function compressMeasureWhitespaceFancy(html, isFancy) {
                 const compChordRaw = compParts.join('');
                 const origBarStarts = delims.map(d => d.start);
 
-                const tokenRegex = /\S+/g;
-                let tm;
-                const tokens = [];
-                while ((tm = tokenRegex.exec(rawNext)) !== null) {
-                    tokens.push({ text: tm[0], start: tm.index });
+                // Group words into phrases (separated by 2+ spaces or tabs) so multi-word lyrics remain intact
+                const phraseRegex = /\S+(?:\s\S+)*/g;
+                const phrases = [];
+                let pm;
+                while ((pm = phraseRegex.exec(rawNext)) !== null) {
+                    phrases.push({ text: pm[0], start: pm.index });
                 }
 
-                if (tokens.length > 0) {
+                if (phrases.length > 0) {
                     const compBotArr = new Array(compChordRaw.length).fill(' ');
                     let currCursor = 0;
-                    for (const tok of tokens) {
+                    for (const phr of phrases) {
                         let targetMeasureIdx = -1;
                         for (let idx = 0; idx < origBarStarts.length; idx++) {
-                            if (tok.start >= origBarStarts[idx]) {
+                            if (phr.start >= origBarStarts[idx]) {
                                 targetMeasureIdx = idx;
                             } else {
                                 break;
@@ -1738,22 +1775,22 @@ function compressMeasureWhitespaceFancy(html, isFancy) {
                         if (targetMeasureIdx >= 0 && targetMeasureIdx < compBarStarts.length) {
                             targetPos = compBarStarts[targetMeasureIdx] + 1;
                         } else {
-                            targetPos = tok.start;
+                            targetPos = phr.start;
                         }
 
                         if (targetPos < currCursor) {
                             targetPos = currCursor;
                         }
 
-                        while (compBotArr.length < targetPos + tok.text.length) {
+                        while (compBotArr.length < targetPos + phr.text.length) {
                             compBotArr.push(' ');
                         }
 
-                        for (let j = 0; j < tok.text.length; j++) {
-                            compBotArr[targetPos + j] = tok.text[j];
+                        for (let j = 0; j < phr.text.length; j++) {
+                            compBotArr[targetPos + j] = phr.text[j];
                         }
 
-                        currCursor = targetPos + tok.text.length + 1;
+                        currCursor = targetPos + phr.text.length + 1;
                     }
 
                     outParas.push(`<p>${compBotArr.join('').replace(/\s+$/, '')}</p>`);
@@ -1790,10 +1827,9 @@ function formatVoltaEndings(html, isFancy) {
         const mHdr = txtCurr.match(ENDING_HDR_REGEX);
 
         if (mHdr) {
-            // Look ahead up to 2 paragraphs for the target chord line containing ':||'
-            // (handles cases like 'Better With Practice' where 'VERSE 1: 1/2 2/2' sits between the 1.___ 2.___ line and the chords)
+            // Look ahead up to 3 paragraphs for the target chord line containing ':||'
             let targetIdx = -1;
-            for (let k = i + 1; k < Math.min(i + 3, paras.length); k++) {
+            for (let k = i + 1; k < Math.min(i + 4, paras.length); k++) {
                 const txtCandidate = paras[k].replace(/<[^>]+>/g, '');
                 if (txtCandidate.includes(':||')) {
                     targetIdx = k;
@@ -1811,7 +1847,7 @@ function formatVoltaEndings(html, isFancy) {
                 if (prefix && /^[1-9]\/[1-9]$/.test(prefix) && i + 1 < targetIdx) {
                     const pNextLine = paras[i + 1];
                     const txtNextLine = pNextLine.replace(/<[^>]+>/g, '');
-                    if (/^(?:VERSE|INTRO|CHORUS|BRIDGE)\b/i.test(txtNextLine)) {
+                    if (/^\s*(?:VERSE|INTRO|CHORUS|BRIDGE)\b/i.test(txtNextLine)) {
                         paras[i + 1] = pNextLine.replace(/^(<p[^>]*>\s*(?:VERSE|INTRO|CHORUS|BRIDGE)[^:]*:)/i, `$1 (${prefix})`);
                         prefix = '';
                     }
@@ -1821,9 +1857,19 @@ function formatVoltaEndings(html, isFancy) {
                     outParas.push(`<p>${prefix}</p>`);
                 }
 
-                // Add any intervening lines (e.g. 'VERSE 1: 1/2 2/2') as-is
+                // Check intervening lines for trailing meter annotations (e.g. '1/2 2/2' in VERSE 1)
+                let interveningAnnot = null;
                 for (let j = i + 1; j < targetIdx; j++) {
-                    outParas.push(paras[j]);
+                    const pInter = paras[j];
+                    const txtInter = pInter.replace(/<[^>]+>/g, '');
+                    const mInterMeter = txtInter.match(/(?:\s{2,}|^)([1-9]\/[1-9]\s+[1-9]\/[1-9]|[1-9]\/[1-9])\s*$/);
+                    if (mInterMeter) {
+                        interveningAnnot = mInterMeter[1].trim();
+                        const cleanInter = txtInter.slice(0, mInterMeter.index).trim();
+                        outParas.push(`<p>${cleanInter}</p>`);
+                    } else {
+                        outParas.push(pInter);
+                    }
                 }
 
                 // Wrap ending measures in paras[targetIdx] with volta brackets
@@ -1846,39 +1892,32 @@ function formatVoltaEndings(html, isFancy) {
                     const delimsBefore = delims.filter(d => d.end <= repBar.start);
                     const delimsAfter = delims.filter(d => d.start >= repBar.end);
 
-                    let e1_start_bar = null;
-                    if (m1) {
-                        for (const d of delimsBefore) {
-                            if (d.start >= m1.index - 3) {
-                                e1_start_bar = d;
-                                break;
-                            }
-                        }
-                    }
-
-                    let e2_end_bar = null;
+                    // Ending 2 end bar:
+                    // If a trailing meter (e.g. '2/4 2/2') exists and more than 1 measure follows :||,
+                    // the last measure is the turnaround exit measure under that annotation!
                     const trailingMatch = txtCurr.slice(mHdr.index + mHdr[0].length).match(/\S.*$/);
-                    if (trailingMatch && (/[1-9]\/[1-9]/.test(trailingMatch[0]) || /[\uf0df\uf0e0←→]/.test(trailingMatch[0]))) {
-                        const trailingStart = mHdr.index + mHdr[0].length + trailingMatch.index;
-                        for (const d of delimsAfter) {
-                            if (d.start <= trailingStart + 2) {
-                                e2_end_bar = d;
-                            } else {
-                                break;
-                            }
-                        }
-                    }
-                    if (!e2_end_bar && delimsAfter.length > 0) {
+                    let e2_end_bar = null;
+                    if (trailingMatch && delimsAfter.length > 1) {
+                        e2_end_bar = delimsAfter[delimsAfter.length - 2];
+                    } else if (delimsAfter.length > 0) {
                         e2_end_bar = delimsAfter[delimsAfter.length - 1];
                     }
 
-                    if (!e1_start_bar) {
-                        const barsInE2 = Math.max(1, delimsAfter.filter(d => d.end <= e2_end_bar.end).length);
-                        if (delimsBefore.length >= barsInE2) {
-                            e1_start_bar = delimsBefore[delimsBefore.length - barsInE2];
-                        } else {
-                            e1_start_bar = delimsBefore.length > 0 ? delimsBefore[0] : null;
+                    const barsInE2 = Math.max(1, delimsAfter.filter(d => d.end <= e2_end_bar.end).length);
+                    let barsInE1 = barsInE2;
+                    if (m1 && m2) {
+                        const u1 = (m1[0].match(/_/g) || []).length;
+                        const u2 = (m2[0].match(/_/g) || []).length;
+                        if (u1 >= u2 * 1.4) {
+                            barsInE1 = Math.round(barsInE2 * (u1 / u2));
                         }
+                    }
+
+                    let e1_start_bar = null;
+                    if (delimsBefore.length >= barsInE1) {
+                        e1_start_bar = delimsBefore[delimsBefore.length - barsInE1];
+                    } else if (delimsBefore.length > 0) {
+                        e1_start_bar = delimsBefore[0];
                     }
 
                     const mainBody = e1_start_bar ? rawNext.slice(0, e1_start_bar.start) : '';
@@ -1889,14 +1928,19 @@ function formatVoltaEndings(html, isFancy) {
                     const v1 = `<span class="volta-box volta-1"><span class="volta-num">1.</span><span class="volta-content">${ending1Content}:||</span></span>`;
                     const v2 = `<span class="volta-box volta-2"><span class="volta-num">2.</span><span class="volta-content">${ending2Content}</span></span>`;
 
-                    if (suffix && (/[1-9]\/[1-9]/.test(suffix) || /[\uf0df\uf0e0←→]/.test(suffix))) {
-                        // Position suffix directly above trailingChords
-                        const plainEnding = mainBody + (mainBody.endsWith('|') ? '' : '|') + `1. ${ending1Content}:|| 2. ${ending2Content}`;
-                        const trailingAnnotP = ' '.repeat(Math.max(1, plainEnding.length + 1)) + suffix;
+                    const sep = mainBody.endsWith('|') ? '' : '|';
+
+                    const plainBeforeV2 = mainBody + sep + `1. ${ending1Content}:|| `;
+                    const plainBeforeTrailing = plainBeforeV2 + `2. ${ending2Content} `;
+
+                    if (interveningAnnot) {
+                        const v2AnnotP = ' '.repeat(Math.max(1, plainBeforeV2.length)) + interveningAnnot;
+                        outParas.push(`<p>${v2AnnotP}</p>`);
+                    } else if (suffix && (/[1-9]\/[1-9]/.test(suffix) || /[\uf0df\uf0e0←→]/.test(suffix))) {
+                        const trailingAnnotP = ' '.repeat(Math.max(1, plainBeforeTrailing.length)) + suffix;
                         outParas.push(`<p>${trailingAnnotP}</p>`);
                     }
 
-                    const sep = mainBody.endsWith('|') ? '' : '|';
                     const chordP = `<p>${mainBody}${sep}${v1} ${v2}${trailingChords}</p>`;
                     outParas.push(chordP);
                     i = targetIdx + 1;
