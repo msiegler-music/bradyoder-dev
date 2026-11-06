@@ -386,5 +386,19 @@ v3.44 - Measure-Aware Anchor Locking for Meter Shifts & Voltas (Nov 05, 2026)
     it directly to the compressed barline coordinates of that specific measure.
   * Preserves symmetric measure counts between 1st and 2nd repeat volta brackets (`1.____ 2.____`).
 - Incremented cache buster to v=1.44.
+
+v3.45 - Level-Harder Measure Alignment: Asymmetric Voltas, Rhythmic Hits & Sub-Chord Vocals (Nov 05, 2026)
+--------------------------------------------------------------------------------
+- Solved the full suite of complex multi-tier alignment challenges exemplified by "Better With Practice":
+  * Asymmetric Repeat Voltas: Supported variable-length repeat brackets (e.g. Bridge 4-bar 1st ending
+    vs 2-bar 2nd ending followed by an exit measure) by mapping visual underscore spans to barlines
+    instead of assuming equal measure counts.
+  * Floating Annotations on Volta Lines: Preserved trailing meter changes (e.g. `2/4 2/2` or `3/2 2/2`)
+    and arrows that share a line with repeat brackets, anchoring them to post-volta measures (e.g. `G ||`).
+  * Rhythmic Subdivisions & Beat Hits: Expanded floating annotation detection to recognize syncopation
+    beat markers (`1-2`, `&-3`, `4`), anchoring them over target push measures (e.g. `Bb / F / G | G ||`).
+  * Sub-Chord Vocals & Dialogue: Extended measure-aware coordinate mapping to lines sitting underneath
+    chords (e.g. Chorus 4 backing vocals and "g.b.w.p..." tag lines), locking words under their chords.
+- Incremented cache buster to v=1.45.
 ================================================================================
 

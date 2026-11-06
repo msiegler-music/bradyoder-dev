@@ -502,7 +502,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.44";
+const APP_BUILD_VERSION = "v1.45";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -1503,7 +1503,8 @@ function compressMeasureWhitespaceFancy(html, isFancy) {
     if (!paras || paras.length === 0) return html;
 
     const outParas = [];
-    for (let i = 0; i < paras.length; i++) {
+    let i = 0;
+    while (i < paras.length) {
         const currP = paras[i];
         const nextP = (i + 1 < paras.length) ? paras[i + 1] : null;
 
@@ -1511,10 +1512,14 @@ function compressMeasureWhitespaceFancy(html, isFancy) {
         const rawNext = nextP ? nextP.replace(/<[^>]+>/g, '') : '';
 
         // Check if currP is a floating annotation line indexing nextP:
-        // (has spaces before meter like 1/2, 2/2, 3/4, or arrows ←, or beat counts 1 2 3, above a chord line with '|')
+        // (has spaces before meter like 1/2, 2/2, 3/4, or arrows ←, or beat counts 1 2 3, 1-2 &-3 4, above a chord line with '|')
         const isFloatingAnnotation = nextP && rawNext.includes('|') && !rawCurr.includes('|') &&
             !/(?:\b|\s)1\.[_\s]+/.test(rawCurr) &&
-            (/(?:\s{2,}|^)\b[1-9]\/[1-9]\b/.test(rawCurr) || /[\uf0df\uf0e0←→]/.test(rawCurr) || /\b1\s+2\s+3\b/.test(rawCurr));
+            (/(?:\s{2,}|^)\b[1-9]\/[1-9]\b/.test(rawCurr) ||
+             /[\uf0df\uf0e0←→]/.test(rawCurr) ||
+             /\b1\s+2\s+3\b/.test(rawCurr) ||
+             /\b[1-9](?:-[0-9&]+|\s+[0-9&]+)+/.test(rawCurr) ||
+             /\b&-[0-9]+/.test(rawCurr));
 
         if (isFloatingAnnotation) {
             // Measure-aware alignment: find bar boundaries in original vs compressed chord line
@@ -1592,19 +1597,107 @@ function compressMeasureWhitespaceFancy(html, isFancy) {
             } else {
                 outParas.push(currP);
             }
+            i++;
             continue;
         }
 
         // Only compress lines with measure bars '|' that are NOT volta header lines ('1.___')
         if (rawCurr.includes('|') && !/(?:\b|\s)1\.[_\s]+/.test(rawCurr)) {
+            // Check if next line is an under-chord annotation (backing vocals, dialogue, performance cues)
+            const isUnderChordAnnotation = nextP && !rawNext.includes('|') &&
+                !/^\s*(?:VERSE|CHORUS|BRIDGE|INTRO|OUTRO|TAG)\b/i.test(rawNext) &&
+                (rawNext.startsWith(' ') || rawNext.startsWith('\t') || rawNext.search(/\S/) >= 2) &&
+                /[a-zA-Z0-9]/.test(rawNext) &&
+                !/(?:\b|\s)1\.[_\s]+/.test(rawNext);
+
             // Compress runs of 2+ spaces down to 1 space outside HTML tags
             const parts = currP.split(/(<[^>]+>)/g);
             for (let k = 0; k < parts.length; k += 2) {
                 parts[k] = parts[k].replace(/ {2,}/g, ' ');
             }
             outParas.push(parts.join(''));
+
+            if (isUnderChordAnnotation) {
+                const delimRegex = /(\|{1,2}:?|:?\|{1,2})/g;
+                const delims = [];
+                let dm;
+                while ((dm = delimRegex.exec(rawCurr)) !== null) {
+                    delims.push({ text: dm[0], start: dm.index });
+                }
+
+                const compParts = [];
+                const compBarStarts = [];
+                let currLen = 0;
+                const splitCurr = rawCurr.split(/(\|{1,2}:?|:?\|{1,2})/g);
+                for (const p of splitCurr) {
+                    if (/^(\|{1,2}:?|:?\|{1,2})$/.test(p)) {
+                        compBarStarts.push(currLen);
+                        compParts.push(p);
+                        currLen += p.length;
+                    } else {
+                        const pClean = p.replace(/ {2,}/g, ' ');
+                        compParts.push(pClean);
+                        currLen += pClean.length;
+                    }
+                }
+                const compChordRaw = compParts.join('');
+                const origBarStarts = delims.map(d => d.start);
+
+                const tokenRegex = /\S+/g;
+                let tm;
+                const tokens = [];
+                while ((tm = tokenRegex.exec(rawNext)) !== null) {
+                    tokens.push({ text: tm[0], start: tm.index });
+                }
+
+                if (tokens.length > 0) {
+                    const compBotArr = new Array(compChordRaw.length).fill(' ');
+                    let currCursor = 0;
+                    for (const tok of tokens) {
+                        let targetMeasureIdx = -1;
+                        for (let idx = 0; idx < origBarStarts.length; idx++) {
+                            if (tok.start >= origBarStarts[idx]) {
+                                targetMeasureIdx = idx;
+                            } else {
+                                break;
+                            }
+                        }
+
+                        let targetPos;
+                        if (targetMeasureIdx >= 0 && targetMeasureIdx < compBarStarts.length) {
+                            targetPos = compBarStarts[targetMeasureIdx] + 1;
+                        } else {
+                            targetPos = tok.start;
+                        }
+
+                        if (targetPos < currCursor) {
+                            targetPos = currCursor;
+                        }
+
+                        while (compBotArr.length < targetPos + tok.text.length) {
+                            compBotArr.push(' ');
+                        }
+
+                        for (let j = 0; j < tok.text.length; j++) {
+                            compBotArr[targetPos + j] = tok.text[j];
+                        }
+
+                        currCursor = targetPos + tok.text.length + 1;
+                    }
+
+                    outParas.push(`<p>${compBotArr.join('').replace(/\s+$/, '')}</p>`);
+                } else {
+                    outParas.push(nextP);
+                }
+                i += 2;
+                continue;
+            }
+
+            i++;
+            continue;
         } else {
             outParas.push(currP);
+            i++;
         }
     }
 
@@ -1638,57 +1731,93 @@ function formatVoltaEndings(html, isFancy) {
             }
 
             if (targetIdx !== -1) {
-                // 1. Clean the header line by stripping the repeat underlines
-                const cleanedHdrTxt = txtCurr.replace(/\s*1\.[_\s]+(?:2\.|➔|->|\uf0e0)[_\s]*/gi, '').trim();
-                if (cleanedHdrTxt) {
-                    outParas.push(`<p>${cleanedHdrTxt}</p>`);
+                // Extract prefix before 1.___ and suffix after 2.___
+                const prefix = txtCurr.slice(0, mHdr.index).trim();
+                const suffix = txtCurr.slice(mHdr.index + mHdr[0].length).trim();
+
+                if (prefix) {
+                    outParas.push(`<p>${prefix}</p>`);
                 }
 
-                // 2. Add any intervening lines (e.g. 'VERSE 1: 1/2 2/2') as-is
+                // Add any intervening lines (e.g. 'VERSE 1: 1/2 2/2') as-is
                 for (let j = i + 1; j < targetIdx; j++) {
                     outParas.push(paras[j]);
                 }
 
-                // 3. Wrap ending measures in paras[targetIdx] with volta brackets
+                // Wrap ending measures in paras[targetIdx] with volta brackets
                 const pNext = paras[targetIdx];
-                const innerNext = pNext.replace(/^<p[^>]*>/i, '').replace(/<\/p>$/i, '');
-                const repParts = innerNext.split(':||');
-                const beforeRep = repParts[0];
-                const afterRep = repParts.slice(1).join(':||');
+                const rawNext = pNext.replace(/<[^>]+>/g, '');
 
-                const mEnd = afterRep.match(/(\|\||:\|\|)\s*$/);
-                const ending2Body = mEnd ? afterRep.slice(0, mEnd.index) : afterRep;
-                const sectionEnd = mEnd ? mEnd[0] : '';
+                const delimRegex = /(\|{1,2}:?|:?\|{1,2})/g;
+                const delims = [];
+                let dm;
+                while ((dm = delimRegex.exec(rawNext)) !== null) {
+                    delims.push({ text: dm[0], start: dm.index, end: dm.index + dm[0].length });
+                }
+                const repBars = delims.filter(d => d.text.includes(':||'));
 
-                // Count measures in Ending 2
-                const barsE2 = ending2Body.split('|').filter(b => b.replace(/<[^>]+>/g, '').trim());
-                const numBars = Math.max(1, barsE2.length);
+                if (repBars.length > 0) {
+                    const repBar = repBars[0];
+                    const m1 = txtCurr.match(/1\.[_]+/);
+                    const m2 = txtCurr.match(/2\.[_]+/);
 
-                // Find symmetric measure count in Ending 1 immediately preceding :||
-                const partsBefore = beforeRep.split('|');
-                let barsFound = 0;
-                let splitIdx = 0;
-                for (let idx = partsBefore.length - 1; idx >= 0; idx--) {
-                    if (partsBefore[idx].replace(/<[^>]+>/g, '').trim()) {
-                        barsFound++;
-                        if (barsFound === numBars) {
-                            splitIdx = idx;
-                            break;
+                    const delimsBefore = delims.filter(d => d.end <= repBar.start);
+                    const delimsAfter = delims.filter(d => d.start >= repBar.end);
+
+                    let e1_start_bar = null;
+                    if (m1) {
+                        for (const d of delimsBefore) {
+                            if (d.start >= m1.index - 3) {
+                                e1_start_bar = d;
+                                break;
+                            }
                         }
                     }
+
+                    let e2_end_bar = null;
+                    const trailingMatch = txtCurr.slice(mHdr.index + mHdr[0].length).match(/\S.*$/);
+                    if (trailingMatch && (/[1-9]\/[1-9]/.test(trailingMatch[0]) || /[\uf0df\uf0e0←→]/.test(trailingMatch[0]))) {
+                        const trailingStart = mHdr.index + mHdr[0].length + trailingMatch.index;
+                        for (const d of delimsAfter) {
+                            if (d.start <= trailingStart + 2) {
+                                e2_end_bar = d;
+                            } else {
+                                break;
+                            }
+                        }
+                    }
+                    if (!e2_end_bar && delimsAfter.length > 0) {
+                        e2_end_bar = delimsAfter[delimsAfter.length - 1];
+                    }
+
+                    if (!e1_start_bar) {
+                        const barsInE2 = Math.max(1, delimsAfter.filter(d => d.end <= e2_end_bar.end).length);
+                        if (delimsBefore.length >= barsInE2) {
+                            e1_start_bar = delimsBefore[delimsBefore.length - barsInE2];
+                        } else {
+                            e1_start_bar = delimsBefore.length > 0 ? delimsBefore[0] : null;
+                        }
+                    }
+
+                    const mainBody = e1_start_bar ? rawNext.slice(0, e1_start_bar.start) : '';
+                    const ending1Content = e1_start_bar ? rawNext.slice(e1_start_bar.end, repBar.start) : rawNext.slice(0, repBar.start);
+                    const ending2Content = e2_end_bar ? rawNext.slice(repBar.end, e2_end_bar.start) : rawNext.slice(repBar.end);
+                    const trailingChords = e2_end_bar ? rawNext.slice(e2_end_bar.start) : '';
+
+                    const v1 = `<span class="volta-box volta-1"><span class="volta-num">1.</span><span class="volta-content">${ending1Content}:||</span></span>`;
+                    const v2 = `<span class="volta-box volta-2"><span class="volta-num">2.</span><span class="volta-content">${ending2Content}</span></span>`;
+
+                    if (suffix && (/[1-9]\/[1-9]/.test(suffix) || /[\uf0df\uf0e0←→]/.test(suffix))) {
+                        const trailingAnnotP = ' '.repeat(mHdr.index + mHdr[0].length + (trailingMatch ? trailingMatch.index : 0)) + suffix;
+                        outParas.push(`<p>${trailingAnnotP}</p>`);
+                    }
+
+                    const sep = mainBody.endsWith('|') ? '' : '|';
+                    const chordP = `<p>${mainBody}${sep}${v1} ${v2}${trailingChords}</p>`;
+                    outParas.push(chordP);
+                    i = targetIdx + 1;
+                    continue;
                 }
-
-                const mainBody = partsBefore.slice(0, splitIdx).join('|');
-                const ending1Content = partsBefore.slice(splitIdx).join('|');
-                const ending2Content = ending2Body;
-
-                const v1 = `<span class="volta-box volta-1"><span class="volta-num">1.</span><span class="volta-content">${ending1Content}:||</span></span>`;
-                const v2 = `<span class="volta-box volta-2"><span class="volta-num">2.</span><span class="volta-content">${ending2Content}${sectionEnd}</span></span>`;
-                const chordP = `<p>${mainBody}|${v1} ${v2}</p>`;
-
-                outParas.push(chordP);
-                i = targetIdx + 1;
-                continue;
             }
         }
 
