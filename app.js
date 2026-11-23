@@ -561,7 +561,7 @@ window.addEventListener("popstate", () => {
 
 // Configure PDF.js worker
 // Application build version constant for cache busting & runtime display
-const APP_BUILD_VERSION = "v1.48";
+const APP_BUILD_VERSION = "v1.49";
 
 if (window.pdfjsLib) {
     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
@@ -802,6 +802,47 @@ function parseChartAlternates(str) {
         files.push(current);
     }
     return files;
+}
+
+// Deterministic chart priority: LETTERS (Concert Key) > NUMBERS > GTR/GUITAR (Pre-transposed) > Other; DOCX > PDF
+function getChartPriorityScore(filename) {
+    const name = filename.toUpperCase();
+    const isDocx = /\.(docx?|html?|txt)$/i.test(filename);
+    const formatScore = isDocx ? 100 : 0;
+
+    let typeScore = 5;
+    if (name.includes("LETTERS") || name.includes("LETTER")) typeScore = 30;
+    else if (name.includes("NUMBERS") || name.includes("NUMBER")) typeScore = 20;
+    else if (name.includes("GTR") || name.includes("GUITAR")) typeScore = 10;
+
+    // Slightly boost UPDATE versions over older non-update versions of the same type
+    const updateBonus = name.includes("UPDATE") ? 2 : 0;
+    return formatScore + typeScore + updateBonus;
+}
+
+// Standardize ("de-Brad") raw chart filenames into clean musical mode labels
+function formatChartModeLabel(filename, index) {
+    const fileExt = filename.split('.').pop().toLowerCase();
+    const stem = filename.replace(/\.[^.]+$/, '');
+    const upper = stem.toUpperCase();
+
+    // Extract any parenthetical key/capo info e.g. "(Eb)" or "(Eb, C capo 3)"
+    const parenMatch = stem.match(/\(([^)]+)\)/);
+    const parenNote = parenMatch ? ` (${parenMatch[1].trim()})` : '';
+
+    let modeLabel = '';
+    if (upper.includes('LETTERS') || upper.includes('LETTER')) {
+        modeLabel = `Letters${parenNote || ' (Concert)'}`;
+    } else if (upper.includes('NUMBERS') || upper.includes('NUMBER')) {
+        modeLabel = `Numbers${parenNote}`;
+    } else if (upper.includes('GTR') || upper.includes('GUITAR')) {
+        modeLabel = `Guitar Capo${parenNote}`;
+    } else {
+        const dashParts = stem.split(/[-_]{1,2}/);
+        modeLabel = dashParts.length > 1 ? dashParts[dashParts.length - 1].trim() : `Version ${index + 1}`;
+    }
+
+    return `${modeLabel} (${fileExt})`;
 }
 
 // Robust CSV parser that handles quotes and normalizes header keys
@@ -1081,7 +1122,9 @@ function selectSong(song, options = {}) {
 
     // --- CHART ALTERNATES & CHORDS (LEFT PANE) ---
     const alternatesStr = song.chart_alternates || "";
-    const files = parseChartAlternates(alternatesStr);
+    const files = parseChartAlternates(alternatesStr).sort((a, b) => {
+        return getChartPriorityScore(b) - getChartPriorityScore(a);
+    });
 
     // Update Left Pane Header: tuning/capo value
     const tuningMetaElem = document.getElementById("chart-tuning-meta");
@@ -1113,11 +1156,7 @@ function selectSong(song, options = {}) {
         if (dropdownContainer) dropdownContainer.style.display = "";
 
         files.forEach((file, index) => {
-            const fileExt = file.split('.').pop().toLowerCase();
-            const stem = file.replace(/\.[^.]+$/, '');
-            const dashParts = stem.split(/[-_]{1,2}/);
-            const suffix = dashParts.length > 1 ? dashParts[dashParts.length - 1].trim() : `Version ${index + 1}`;
-            const labelText = `${suffix} (${fileExt})`;
+            const labelText = formatChartModeLabel(file, index);
 
             // Desktop tab button
             if (selectorContainer) {

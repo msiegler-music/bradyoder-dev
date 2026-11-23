@@ -441,5 +441,17 @@ v3.48 - Calibrated Asymmetric Voltas, Rhythmic Push Snapping & Exit Turnarounds 
   * Phrase-aware sub-chord lyrics: Keeps multi-word vocal cues intact across measure boundaries
     in Chorus 4 and TAG lines.
 - Incremented cache buster to v=1.48.
+
+v3.49 - Deterministic Chart Priority, Missing Birds Charts & Standardized Mode Labels (Nov 23, 2026)
+--------------------------------------------------------------------------------
+- Enforced deterministic chart priority hierarchy in `app.js`:
+  * `LETTERS` (Concert Key) > `NUMBERS` (Nashville) > `GTR` / `GUITAR` (Pre-transposed Capo) > Other.
+  * `.docx` interactive charts are prioritized over `.pdf` reference files.
+  * Resolves *Box of Tears* and other songs defaulting to Guitar Capo shapes instead of Concert Letters.
+- Promoted missing *As Easily as Birds* `LETTERS` and `NUMBERS` charts (`.docx` & `.pdf`) from
+  `archive/raw_charts/multi/` into `charts/input/` and linked them in `charts.csv`.
+- Standardized ("de-Braded") chart version selector labels into clean musical modes:
+  `Letters (Concert)`, `Numbers`, and `Guitar Capo` with format suffix.
+- Incremented cache buster to v=1.49.
 ================================================================================
 
